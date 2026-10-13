@@ -1,0 +1,7 @@
+{
+  "name": "Thiên Cơ Các - Vận Mệnh Đông Tây & Nhân Tướng Học",
+  "description": "Ứng dụng bói toán huyền học đa năng kết hợp Tử Vi Lý Số, Nhân Tướng Học (khuôn mặt & chỉ tay bằng AI), Gieo Quẻ Kinh Dịch miễn phí cùng nhân vật Tiên Tri phong cách truyện tranh dẫn dắt, kèm bói bài Tarot và Quả Cầu Thủy Tinh phương Tây.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
