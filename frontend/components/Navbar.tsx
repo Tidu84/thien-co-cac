@@ -1,7 +1,12 @@
-import React, { useState } from 'react';
-import { NavTab } from '../types';
+import React, { useState, useEffect, useRef } from 'react';
+import { NavTab, UserDossier } from '../types';
 import { MobileAndGitHubModal } from './MobileAndGitHubModal';
-import { Compass, Sparkles, User, Eye, Bookmark, Moon, HelpCircle, HardDrive, Star, X, Heart, Binary, Navigation, Smartphone, Github } from 'lucide-react';
+import { 
+  getActiveDossierName, 
+  getUserDossiers, 
+  setActiveDossierName 
+} from '../services/dossierService';
+import { Compass, Sparkles, User, Eye, Bookmark, Moon, HelpCircle, HardDrive, Star, X, Heart, Binary, Navigation, Smartphone, GitBranch, ChevronDown, Check } from 'lucide-react';
 
 interface NavbarProps {
   currentTab: NavTab;
@@ -12,6 +17,35 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab, savedCount }) => {
   const [showSaveHelp, setShowSaveHelp] = useState(false);
   const [showMobileModal, setShowMobileModal] = useState(false);
+  const [activeDossier, setActiveDossier] = useState<string>('');
+  const [dossiers, setDossiers] = useState<UserDossier[]>([]);
+  const [showDossierDropdown, setShowDossierDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
+
+  const refreshDossiers = () => {
+    setActiveDossier(getActiveDossierName());
+    setDossiers(getUserDossiers());
+  };
+
+  useEffect(() => {
+    refreshDossiers();
+    const handleUpdate = () => refreshDossiers();
+    window.addEventListener('thien_co_cac_active_name_changed', handleUpdate);
+    window.addEventListener('thien_co_cac_dossier_updated', handleUpdate);
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDossierDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+
+    return () => {
+      window.removeEventListener('thien_co_cac_active_name_changed', handleUpdate);
+      window.removeEventListener('thien_co_cac_dossier_updated', handleUpdate);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const tabs = [
     { id: 'home', label: 'Sảnh Tiên Tri & Kinh Dịch', icon: Compass },
@@ -75,6 +109,65 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab, savedCo
                 );
               })}
             </nav>
+
+            {/* Quick Active Dossier Switcher */}
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setShowDossierDropdown(!showDossierDropdown)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-900/90 hover:bg-amber-500/10 text-amber-300 border border-amber-400/40 shadow-sm transition whitespace-nowrap"
+                title="Đương số đang kích hoạt (bấm để đổi người khác)"
+              >
+                <User className="w-3.5 h-3.5 text-amber-400" />
+                <span className="text-slate-400 font-normal hidden md:inline">Đương số:</span>
+                <span className="font-bold max-w-[110px] truncate">{activeDossier || 'Khách Vãng Lai'}</span>
+                <ChevronDown className="w-3 h-3 text-slate-400" />
+              </button>
+
+              {showDossierDropdown && (
+                <div className="absolute right-0 mt-2 w-64 bg-slate-900/95 border border-amber-500/40 rounded-2xl shadow-2xl p-2 z-50 backdrop-blur-md animate-fadeIn">
+                  <div className="px-3 py-1.5 border-b border-slate-800 text-[11px] font-bold text-amber-400 flex items-center justify-between">
+                    <span>HỒ SƠ ĐÃ LƯU ({dossiers.length})</span>
+                    <button
+                      onClick={() => {
+                        setShowDossierDropdown(false);
+                        onSelectTab('home');
+                      }}
+                      className="text-slate-400 hover:text-amber-300 text-[10px]"
+                    >
+                      Quản lý &rarr;
+                    </button>
+                  </div>
+                  <div className="max-h-56 overflow-y-auto space-y-1 py-1">
+                    {dossiers.map(d => {
+                      const isSel = d.fullName === activeDossier;
+                      return (
+                        <div
+                          key={d.id}
+                          onClick={() => {
+                            setActiveDossierName(d.fullName);
+                            setActiveDossier(d.fullName);
+                            setShowDossierDropdown(false);
+                          }}
+                          className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs cursor-pointer transition ${
+                            isSel 
+                              ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30' 
+                              : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                          }`}
+                        >
+                          <div className="truncate pr-2">
+                            <div>{d.fullName}</div>
+                            <div className="text-[10px] text-slate-500 font-normal">
+                              {d.birthDate || d.canChiYear || 'Chưa cập nhật ngày sinh'}
+                            </div>
+                          </div>
+                          {isSel && <Check className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Nút Xem trên Điện Thoại & GitHub */}
             <button

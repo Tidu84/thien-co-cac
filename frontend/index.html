@@ -17,6 +17,18 @@
       0%, 100% { transform: translateY(0px); }
       50% { transform: translateY(-8px); }
     }
+    @keyframes fogDrift1 {
+      0% { transform: translate(-5%, 0) scale(1); opacity: 0.25; }
+      50% { transform: translate(6%, -10px) scale(1.08); opacity: 0.45; }
+      100% { transform: translate(-5%, 0) scale(1); opacity: 0.25; }
+    }
+    @keyframes fogDrift2 {
+      0% { transform: translate(6%, 0) scale(1.05); opacity: 0.2; }
+      50% { transform: translate(-6%, -15px) scale(0.98); opacity: 0.4; }
+      100% { transform: translate(6%, 0) scale(1.05); opacity: 0.2; }
+    }
+    .fog-anim-1 { animation: fogDrift1 18s ease-in-out infinite; }
+    .fog-anim-2 { animation: fogDrift2 24s ease-in-out infinite; }
     .pulse-glow { animation: pulseGlow 3s infinite ease-in-out; }
     .float-slow { animation: floatSlow 4s infinite ease-in-out; }
     .font-mystic { font-family: 'Cinzel Decorative', 'Playfair Display', serif; }

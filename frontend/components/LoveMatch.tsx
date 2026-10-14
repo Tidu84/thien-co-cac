@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { PersonLoveInput, LoveMatchSummary } from '../types';
 import { calculateLoveMatch } from '../services/loveMatchService';
 import { analyzeLoveMatchWithGemini } from '../services/geminiService';
+import { upsertUserDossier } from '../services/dossierService';
 import { 
   Heart, 
   Sparkles, 
@@ -18,7 +19,13 @@ import {
 } from 'lucide-react';
 
 interface LoveMatchProps {
-  onSaveResult: (record: { title: string; summary: string; fullContent: string; type: 'love_match' }) => void;
+  onSaveResult: (record: { 
+    title: string; 
+    summary: string; 
+    fullContent: string; 
+    type: 'love_match';
+    personName?: string;
+  }) => void;
 }
 
 export const LoveMatch: React.FC<LoveMatchProps> = ({ onSaveResult }) => {
@@ -59,6 +66,26 @@ export const LoveMatch: React.FC<LoveMatchProps> = ({ onSaveResult }) => {
     const summary = calculateLoveMatch(person1, person2);
     setMatchSummary(summary);
 
+    // Tự động lưu hồ sơ của cả 2 đương số
+    if (person1.name && person1.name.trim()) {
+      upsertUserDossier({
+        fullName: person1.name.trim(),
+        gender: person1.gender,
+        birthDate: `${person1.year}-${String(person1.month).padStart(2, '0')}-${String(person1.day).padStart(2, '0')}`,
+        canChiYear: summary.person1.canChiYear,
+        menhNguHanh: summary.person1.napAm
+      });
+    }
+    if (person2.name && person2.name.trim()) {
+      upsertUserDossier({
+        fullName: person2.name.trim(),
+        gender: person2.gender,
+        birthDate: `${person2.year}-${String(person2.month).padStart(2, '0')}-${String(person2.day).padStart(2, '0')}`,
+        canChiYear: summary.person2.canChiYear,
+        menhNguHanh: summary.person2.napAm
+      });
+    }
+
     // AI phân tích chuyên sâu
     const analysis = await analyzeLoveMatchWithGemini(summary);
     setAiAnalysis(analysis);
@@ -70,6 +97,7 @@ export const LoveMatch: React.FC<LoveMatchProps> = ({ onSaveResult }) => {
     if (!matchSummary || !aiAnalysis) return;
     onSaveResult({
       title: `Hợp Duyên: ${matchSummary.person1.name} (${matchSummary.person1.canChiYear}) ♥ ${matchSummary.person2.name} (${matchSummary.person2.canChiYear})`,
+      personName: `${matchSummary.person1.name} & ${matchSummary.person2.name}`,
       summary: `Điểm tương hợp: ${matchSummary.totalScore}/100 • ${matchSummary.verdict} • Bản mệnh: ${matchSummary.factors.nguHanh.title}`,
       fullContent: aiAnalysis,
       type: 'love_match'

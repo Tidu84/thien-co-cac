@@ -59,6 +59,21 @@ export interface TuViPalace {
   description: string;
 }
 
+export interface UserDossier {
+  id: string;
+  fullName: string;
+  gender?: 'nam' | 'nu';
+  birthDate?: string; // YYYY-MM-DD
+  lunarDate?: string;
+  birthHour?: string;
+  canChiYear?: string;
+  menhNguHanh?: string;
+  notes?: string;
+  createdDate: string;
+  lastUpdated: string;
+  recordsCount?: number;
+}
+
 export interface TarotCard {
   id: string;
   name: string;
@@ -71,7 +86,9 @@ export interface TarotCard {
 
 export interface DivinationRecord {
   id: string;
-  type: 'iching' | 'tuvi' | 'love_match' | 'numerology' | 'compass' | 'face' | 'palm' | 'tarot' | 'crystal';
+  type: 'iching' | 'tuvi' | 'love_match' | 'numerology' | 'compass' | 'face' | 'palm' | 'body' | 'tarot' | 'crystal';
+  personName?: string; // Tên của chủ sự / người được lưu hồ sơ
+  capturedImage?: string; // Hình ảnh chụp tướng mặt, chỉ tay, toàn thân (base64 hoặc svg)
   title: string;
   summary: string;
   fullContent: string;

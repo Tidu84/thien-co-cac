@@ -1,7 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NumerologyReport } from '../types';
 import { generateNumerologyReport } from '../services/numerologyService';
 import { analyzeNumerologyWithGemini } from '../services/geminiService';
+import { 
+  upsertUserDossier, 
+  getActiveDossierName, 
+  getUserDossiers 
+} from '../services/dossierService';
 import { 
   Sparkles, 
   BookmarkPlus, 
@@ -19,22 +24,72 @@ import {
 } from 'lucide-react';
 
 interface NumerologyProps {
-  onSaveResult: (record: { title: string; summary: string; fullContent: string; type: 'numerology' }) => void;
+  onSaveResult: (record: { 
+    title: string; 
+    summary: string; 
+    fullContent: string; 
+    type: 'numerology';
+    personName?: string;
+  }) => void;
 }
 
 export const NumerologyView: React.FC<NumerologyProps> = ({ onSaveResult }) => {
-  const [fullName, setFullName] = useState('Nguyễn Văn An');
+  const [fullName, setFullName] = useState(() => {
+    try {
+      const active = getActiveDossierName();
+      if (active && active.trim()) return active.trim();
+      const saved = localStorage.getItem('thien_co_cac_user_name');
+      if (saved && saved.trim()) return saved.trim();
+    } catch {}
+    return 'Nguyễn Văn An';
+  });
   const [birthDate, setBirthDate] = useState('1998-08-18');
   const [report, setReport] = useState<NumerologyReport | null>(null);
   const [aiReading, setAiReading] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
+  // Tự động đồng bộ với hồ sơ đang kích hoạt
+  useEffect(() => {
+    const handleActiveChange = (e: any) => {
+      const activeName = e.detail?.name || getActiveDossierName();
+      if (!activeName) return;
+      setFullName(activeName);
+
+      const allDossiers = getUserDossiers();
+      const matched = allDossiers.find(d => d.fullName.toLowerCase() === activeName.toLowerCase());
+      if (matched && matched.birthDate) {
+        setBirthDate(matched.birthDate);
+      }
+    };
+
+    window.addEventListener('thien_co_cac_active_name_changed', handleActiveChange);
+    return () => {
+      window.removeEventListener('thien_co_cac_active_name_changed', handleActiveChange);
+    };
+  }, []);
+
+  const handleNameChange = (val: string) => {
+    setFullName(val);
+    try {
+      localStorage.setItem('thien_co_cac_user_name', val);
+    } catch {}
+    if (val.trim()) {
+      upsertUserDossier({ fullName: val.trim(), birthDate });
+    }
+  };
+
   // Xử lý tính toán và luận giải AI
   const handleCalculate = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setLoading(true);
     setAiReading(null);
+
+    // Tự động lưu ngay vào hồ sơ đương số
+    upsertUserDossier({
+      fullName: fullName.trim(),
+      birthDate
+    });
 
     // Tính toán theo trường phái Pythagoras
     const generated = generateNumerologyReport(fullName, birthDate);
@@ -50,6 +105,7 @@ export const NumerologyView: React.FC<NumerologyProps> = ({ onSaveResult }) => {
     if (!report || !aiReading) return;
     onSaveResult({
       title: `Thần Số Học: ${report.fullName} (Số Chủ Đạo ${report.isMaster22 ? '22/4' : report.lifePathNumber})`,
+      personName: report.fullName,
       summary: `Số Chủ Đạo: ${report.isMaster22 ? '22/4' : report.lifePathNumber} • Số Linh Hồn: ${report.soulUrgeNumber} • Năm Cá Nhân: ${report.personalYear}`,
       fullContent: aiReading,
       type: 'numerology'
@@ -112,7 +168,7 @@ export const NumerologyView: React.FC<NumerologyProps> = ({ onSaveResult }) => {
               type="text"
               required
               value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
+              onChange={(e) => handleNameChange(e.target.value)}
               placeholder="Ví dụ: Nguyễn Văn An"
               className="w-full bg-slate-950 border border-slate-700 focus:border-indigo-400 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-400"
             />

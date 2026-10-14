@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Smartphone, 
-  Github, 
+  GitBranch, 
   QrCode, 
   Copy, 
   Check, 
@@ -96,7 +96,7 @@ export const MobileAndGitHubModal: React.FC<MobileAndGitHubModalProps> = ({ isOp
                 : 'text-slate-400 hover:text-purple-300'
             }`}
           >
-            <Github className="w-4 h-4" />
+            <GitBranch className="w-4 h-4" />
             <span>2. Đẩy Lên GitHub</span>
           </button>
 

@@ -10,10 +10,13 @@ import { FengShuiCompass } from './components/FengShuiCompass';
 import { FaceAndPalmReading } from './components/FaceAndPalmReading';
 import { WesternDivination } from './components/WesternDivination';
 import { HistoryModal } from './components/HistoryModal';
+import { RecentDossiersBanner } from './components/RecentDossiersBanner';
+import { syncDossierRecordCounts } from './services/dossierService';
 import { Compass, Sparkles, Moon, Eye, ShieldCheck, Heart, Binary, Navigation } from 'lucide-react';
 
 export default function App() {
   const [currentTab, setCurrentTab] = useState<NavTab>('home');
+  const [facePalmInitialMode, setFacePalmInitialMode] = useState<'face' | 'palm' | 'body'>('face');
   const [savedRecords, setSavedRecords] = useState<DivinationRecord[]>([]);
   const [activeQuestion, setActiveQuestion] = useState<string>('');
 
@@ -22,7 +25,9 @@ export default function App() {
     try {
       const data = localStorage.getItem('thien_co_cac_records');
       if (data) {
-        setSavedRecords(JSON.parse(data));
+        const parsed = JSON.parse(data);
+        setSavedRecords(parsed);
+        syncDossierRecordCounts(parsed);
       }
     } catch (e) {
       console.error("Could not load stored records:", e);
@@ -30,14 +35,28 @@ export default function App() {
   }, []);
 
   // Save fortune record
-  const handleSaveRecord = (item: { title: string; summary: string; fullContent: string; type: DivinationRecord['type'] }) => {
+  const handleSaveRecord = (item: { 
+    title: string; 
+    summary: string; 
+    fullContent: string; 
+    type: DivinationRecord['type'];
+    personName?: string;
+    capturedImage?: string;
+  }) => {
+    let defaultPersonName = '';
+    try {
+      defaultPersonName = localStorage.getItem('thien_co_cac_user_name') || '';
+    } catch {}
+
     const newRecord: DivinationRecord = {
       id: Date.now().toString(),
       ...item,
+      personName: item.personName || defaultPersonName || 'Hữu Duyên Khách',
       date: new Date().toLocaleString('vi-VN')
     };
     const updated = [newRecord, ...savedRecords];
     setSavedRecords(updated);
+    syncDossierRecordCounts(updated);
     try {
       localStorage.setItem('thien_co_cac_records', JSON.stringify(updated));
     } catch (e) {
@@ -48,12 +67,14 @@ export default function App() {
   const handleDeleteRecord = (id: string) => {
     const updated = savedRecords.filter(r => r.id !== id);
     setSavedRecords(updated);
+    syncDossierRecordCounts(updated);
     localStorage.setItem('thien_co_cac_records', JSON.stringify(updated));
   };
 
   const handleClearAllRecords = () => {
     if (window.confirm("Bạn có chắc chắn muốn xóa toàn bộ sổ tay lưu quẻ không?")) {
       setSavedRecords([]);
+      syncDossierRecordCounts([]);
       localStorage.removeItem('thien_co_cac_records');
     }
   };
@@ -63,6 +84,7 @@ export default function App() {
     // Remove duplicates by ID
     const unique = Array.from(new Map(merged.map(item => [item.id, item])).values());
     setSavedRecords(unique);
+    syncDossierRecordCounts(unique);
     localStorage.setItem('thien_co_cac_records', JSON.stringify(unique));
   };
 
@@ -94,9 +116,12 @@ export default function App() {
           />
         )}
 
-        {/* Tab 1: Home / I-Ching Free Toss */}
+        {/* Tab 1: Home / I-Ching Free Toss & Dossiers */}
         {currentTab === 'home' && (
           <div className="space-y-6">
+            {/* Hồ Sơ Những Người Đã Xem Trước Đó - Xuất hiện ngay khi vào app */}
+            <RecentDossiersBanner onNavigateTab={setCurrentTab} />
+
             <IChingDivination
               initialQuestion={activeQuestion}
               onSaveResult={handleSaveRecord}
@@ -187,7 +212,16 @@ export default function App() {
 
         {/* Tab 2: Tử Vi Lý Số */}
         {currentTab === 'tuvi' && (
-          <TuViHoroscope onSaveResult={handleSaveRecord} />
+          <TuViHoroscope
+            onSaveResult={handleSaveRecord}
+            onNavigateTab={(tab, subMode) => {
+              if (tab === 'facepalm' && subMode) {
+                setFacePalmInitialMode(subMode);
+              }
+              setCurrentTab(tab);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          />
         )}
 
         {/* Tab 3: La Bàn Bát Trạch Số Hóa */}
@@ -207,7 +241,10 @@ export default function App() {
 
         {/* Tab 6: Face & Palm Reading */}
         {currentTab === 'facepalm' && (
-          <FaceAndPalmReading onSaveResult={handleSaveRecord} />
+          <FaceAndPalmReading
+            initialMode={facePalmInitialMode}
+            onSaveResult={handleSaveRecord}
+          />
         )}
 
         {/* Tab 7: Western Divination (Tarot & Crystal Ball) */}

@@ -1,7 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { CharacterMood, ChatMessage, NavTab } from '../types';
 import { chatWithLinhNhi } from '../services/geminiService';
-import { Character3D } from './Character3D';
+import { Character3D, FortuneTellerStyle } from './Character3D';
+import { 
+  upsertUserDossier, 
+  getActiveDossierName, 
+  setActiveDossierName 
+} from '../services/dossierService';
 import { 
   Sparkles, 
   Send, 
@@ -25,6 +30,7 @@ interface AnimeGuideProps {
 
 export const AnimeGuide: React.FC<AnimeGuideProps> = ({ onQuickQuestion, onNavigateTab }) => {
   const [characterMood, setCharacterMood] = useState<CharacterMood>('happy');
+  const [currentFortuneTellerStyle, setCurrentFortuneTellerStyle] = useState<FortuneTellerStyle>('manga_cool');
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   
@@ -36,19 +42,41 @@ export const AnimeGuide: React.FC<AnimeGuideProps> = ({ onQuickQuestion, onNavig
 
   // Trạng thái quyết định của người dùng: null (chưa chọn) | 'yes' (chọn Có) | 'no' (chọn Không)
   const [userChoice, setUserChoice] = useState<'yes' | 'no' | null>(null);
+  const [userName, setUserName] = useState<string>(() => {
+    try {
+      return getActiveDossierName() || localStorage.getItem('thien_co_cac_user_name') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [nameInput, setNameInput] = useState<string>('');
+
+  // Lắng nghe thay đổi hồ sơ đang kích hoạt
+  useEffect(() => {
+    const handleActiveChange = (e: any) => {
+      const newName = e.detail?.name || getActiveDossierName();
+      if (newName) {
+        setUserName(newName);
+      }
+    };
+    window.addEventListener('thien_co_cac_active_name_changed', handleActiveChange);
+    return () => {
+      window.removeEventListener('thien_co_cac_active_name_changed', handleActiveChange);
+    };
+  }, []);
 
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const hasAutoSpokenRef = useRef(false);
 
-  // Câu khẩu quyết mở màn đúng yêu cầu: hỏi có cần xem miễn phí không
-  const initialIntroScript = "Ta là thầy bói giang hồ, có thể xem tướng đoán mệnh. Bạn có cần ta xem cho bạn một quẻ miễn phí không?";
+  // Câu khẩu quyết mở màn tự giới thiệu bản thân đầy khí chất:
+  const initialIntroScript = "Bần đạo là Thiên Cơ Chân Nhân. Hữu duyên tương ngộ nơi Thiên Cơ Các! Nhìn thần sắc người hôm nay... dường như trong lòng đang có điều trăn trở chưa tỏ?";
 
   // Khung chat ban đầu
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'init-1',
       sender: 'linhnhi',
-      text: "Ta là thầy bói giang hồ, có thể xem tướng đoán mệnh. Bạn có cần ta xem cho bạn một quẻ miễn phí không?",
+      text: "Bần đạo là Thiên Cơ Chân Nhân. Hữu duyên tương ngộ nơi Thiên Cơ Các! Nhìn thần sắc người hôm nay... dường như trong lòng đang có điều trăn trở chưa tỏ?",
       timestamp: 'Vừa xong'
     }
   ]);
@@ -107,47 +135,56 @@ export const AnimeGuide: React.FC<AnimeGuideProps> = ({ onQuickQuestion, onNavig
     }
   };
 
-  // TỰ ĐỘNG PHÁT TIẾNG NÓI NGAY KHI MỞ APP
+  // TỰ ĐỘNG PHÁT TIẾNG NÓI NGAY KHI MỞ APP (TỰ MỞ GIỌNG KHÔNG CẦN BẤM LOA)
   useEffect(() => {
-    const initialTimer = setTimeout(() => {
-      speakText(initialIntroScript);
-      
-      // Nếu sau 1.2s trình duyệt chặn autoplay không có tương tác người dùng
-      setTimeout(() => {
-        if (!window.speechSynthesis.speaking && !hasStartedSpeaking) {
-          setShowAutoplayPrompt(true);
-        }
-      }, 1200);
-    }, 350);
+    let hasSpoken = false;
 
-    const triggerOnFirstInteraction = () => {
-      if (!hasStartedSpeaking || !window.speechSynthesis.speaking) {
-        speakText(initialIntroScript);
-        setShowAutoplayPrompt(false);
+    const playIntroSpeech = () => {
+      if (hasSpoken) return;
+      hasSpoken = true;
+      hasAutoSpokenRef.current = true;
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
       }
+      speakText(initialIntroScript);
+      setShowAutoplayPrompt(false);
     };
 
-    window.addEventListener('click', triggerOnFirstInteraction, { once: true });
-    window.addEventListener('touchstart', triggerOnFirstInteraction, { once: true });
-    window.addEventListener('keydown', triggerOnFirstInteraction, { once: true });
-    window.addEventListener('pointerdown', triggerOnFirstInteraction, { once: true });
+    // 1. Thử gọi phát ngay khi nạp trang
+    const timer1 = setTimeout(() => {
+      if (!hasSpoken && 'speechSynthesis' in window) {
+        playIntroSpeech();
+      }
+    }, 250);
 
+    // 2. Tự động phát ngay khi người dùng chạm bất kỳ đâu hoặc bấm phím (không cần bấm vào nút loa)
+    const unlockEvents = ['pointerdown', 'mousedown', 'touchstart', 'keydown', 'wheel'];
+    const handleFirstGesture = () => {
+      if (!hasSpoken) {
+        playIntroSpeech();
+      }
+      unlockEvents.forEach(evt => window.removeEventListener(evt, handleFirstGesture));
+    };
+
+    unlockEvents.forEach(evt => {
+      window.addEventListener(evt, handleFirstGesture, { once: true, capture: true });
+    });
+
+    // 3. Khi trình duyệt nạp xong bộ giọng nói tiếng Việt
     if ('speechSynthesis' in window) {
       window.speechSynthesis.onvoiceschanged = () => {
-        if (!hasAutoSpokenRef.current) {
-          speakText(initialIntroScript);
+        if (!hasSpoken) {
+          playIntroSpeech();
         }
       };
     }
 
     return () => {
-      clearTimeout(initialTimer);
-      window.removeEventListener('click', triggerOnFirstInteraction);
-      window.removeEventListener('touchstart', triggerOnFirstInteraction);
-      window.removeEventListener('keydown', triggerOnFirstInteraction);
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
+      clearTimeout(timer1);
+      unlockEvents.forEach(evt => window.removeEventListener(evt, handleFirstGesture));
     };
   }, []);
 
@@ -158,12 +195,12 @@ export const AnimeGuide: React.FC<AnimeGuideProps> = ({ onQuickQuestion, onNavig
     }
   }, [messages, isTyping]);
 
-  // KHI NGƯỜI DÙNG BẤM "CÓ" (ĐỒNG Ý XEM BÓI)
+  // KHI NGƯỜI DÙNG BẤM "NHỜ TIÊN SINH CHỈ ĐIỂM" -> HỎI DANH TÍNH TRƯỚC
   const handleSelectYes = () => {
     setUserChoice('yes');
 
-    const userText = "Có, hãy xem giúp tôi một quẻ miễn phí!";
-    const teacherReply = "Được thôi! Ta tinh thông Tử Vi Lý Số, La Bàn Bát Trạch, Thần Số Học, Chấm điểm tình duyên, Soi tướng mặt chỉ tay và Bài Tarot. Bạn muốn chọn đường nào? Nếu chưa chọn được, hãy gieo một quẻ Kinh Dịch trước để xem cát/hung sắp tới nhé!";
+    const userText = "Quả thực có điều trăn trở, nhờ tiên sinh chỉ điểm giúp!";
+    const teacherReply = "Thiên cơ huyền vi, trước khi bấm quẻ, xin hỏi quý danh hoặc pháp danh của bạn hữu là gì để ta tiện xưng hô?";
 
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
@@ -176,23 +213,51 @@ export const AnimeGuide: React.FC<AnimeGuideProps> = ({ onQuickQuestion, onNavig
       id: (Date.now() + 1).toString(),
       sender: 'linhnhi',
       text: teacherReply,
-      timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-      suggestedAction: {
-        label: "🪙 Gieo Quẻ Kinh Dịch Xem Cát / Hung",
-        targetTab: 'home'
-      }
+      timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
     };
 
     setMessages(prev => [...prev, userMsg, replyMsg]);
     speakText(teacherReply);
   };
 
-  // KHI NGƯỜI DÙNG BẤM "KHÔNG" (TỪ CHỐI XEM)
+  // KHI NGƯỜI DÙNG NHẬP XONG TÊN
+  const handleConfirmName = (nameToSet?: string) => {
+    const finalName = (nameToSet || nameInput).trim() || 'Hữu Duyên Khách';
+    setUserName(finalName);
+    try {
+      localStorage.setItem('thien_co_cac_user_name', finalName);
+    } catch (e) {
+      console.warn("Could not save user name:", e);
+    }
+    // LƯU NGAY VÀO HỒ SƠ ĐƯƠNG SỐ (CẬP NHẬT TẤT CẢ DANH SÁCH & TAB)
+    upsertUserDossier({ fullName: finalName });
+
+    const userMsg: ChatMessage = {
+      id: Date.now().toString(),
+      sender: 'user',
+      text: `Tôi tên là ${finalName}.`,
+      timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+    };
+
+    const teacherReply = `Chào ${finalName}! Hôm nay bạn muốn ta xem về phương diện nào trước: Xem Tử Vi vận số, Xem Chỉ Tay hay Xem Tướng Mạo?`;
+
+    const replyMsg: ChatMessage = {
+      id: (Date.now() + 1).toString(),
+      sender: 'linhnhi',
+      text: teacherReply,
+      timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+    };
+
+    setMessages(prev => [...prev, userMsg, replyMsg]);
+    speakText(teacherReply);
+  };
+
+  // KHI NGƯỜI DÙNG BẤM "TIỆN ĐƯỜNG DẠO CHƠI"
   const handleSelectNo = () => {
     setUserChoice('no');
 
-    const userText = "Không, tôi chưa cần xem bây giờ!";
-    const teacherReply = "Không sao cả! Vạn sự tùy duyên. Bạn hữu cứ thong dong dạo chơi ngắm cảnh Thiên Cơ Các. Khi nào trong lòng có điều trăn trở, cứ gọi tên ta nhé!";
+    const userText = "Tôi chỉ tiện đường ghé qua dạo chơi thôi!";
+    const teacherReply = "Haha, vạn sự tùy duyên! Người cứ thong thả dạo bước ngắm cảnh Thiên Cơ Các. Khi nào tâm động hay có điều cần vấn, cứ việc cất tiếng hỏi ta.";
 
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
@@ -327,9 +392,21 @@ export const AnimeGuide: React.FC<AnimeGuideProps> = ({ onQuickQuestion, onNavig
 
   return (
     <div className="relative bg-gradient-to-b from-slate-900 via-purple-950/40 to-slate-950 border-2 border-amber-400/50 rounded-3xl p-4 sm:p-6 shadow-2xl backdrop-blur-xl overflow-hidden">
-      {/* Background Magic Nebulas */}
-      <div className="absolute -top-16 -right-16 w-80 h-80 bg-amber-500/10 rounded-full blur-[100px] pointer-events-none" />
-      <div className="absolute -bottom-16 -left-16 w-80 h-80 bg-purple-600/15 rounded-full blur-[100px] pointer-events-none" />
+      {/* 1. LỚP SƯƠNG KHÓI HUYỀN HUYỄN BACKGROUND (CHUYỂN ĐỘNG TRÔI LƯỢN MƯỢT MÀ, KHÔNG NHẤP NHÁY) */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+        {/* Làn sương khói tím huyền ảo trôi chậm góc trên */}
+        <div className="absolute -top-24 -left-24 w-[480px] h-[380px] bg-purple-600/15 rounded-full blur-[110px] fog-anim-1" />
+        
+        {/* Làn khói vàng kim tiên khí tỏa ra góc phải */}
+        <div className="absolute top-10 -right-20 w-[420px] h-[360px] bg-amber-500/12 rounded-full blur-[100px] fog-anim-2" />
+        
+        {/* Lớp sương mù lam ngọc lượn sóng cuộn trôi dưới đáy */}
+        <div className="absolute -bottom-16 inset-x-0 h-48 bg-gradient-to-t from-cyan-900/25 via-indigo-950/20 to-transparent blur-2xl fog-anim-1" />
+        
+        {/* Các dải khói mờ mờ trôi dạt ngang qua sân khấu */}
+        <div className="absolute top-1/3 -left-32 w-[650px] h-28 bg-gradient-to-r from-transparent via-cyan-400/10 to-transparent rotate-6 blur-3xl fog-anim-2" />
+        <div className="absolute bottom-1/4 -right-32 w-[650px] h-28 bg-gradient-to-l from-transparent via-purple-400/10 to-transparent -rotate-6 blur-3xl fog-anim-1" />
+      </div>
 
       {/* BANNER NHẮC CHẠM BẬT TIẾNG NẾU TRÌNH DUYỆT CHẶN AUTOPLAY */}
       {showAutoplayPrompt && !isSpeaking && (
@@ -352,36 +429,113 @@ export const AnimeGuide: React.FC<AnimeGuideProps> = ({ onQuickQuestion, onNavig
         </div>
       )}
 
-      {/* TOP HEADER */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 mb-4 border-b border-amber-500/30">
-        <div className="flex items-center gap-2">
-          <span className="text-xl">☯</span>
-          <h2 className="font-mystic text-lg sm:text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-500">
-            Thầy Bói Giang Hồ • Quả Cầu Ma Thuật & Áo Choàng Bí Ẩn
-          </h2>
+      {/* TOP HEADER: TIÊU ĐỀ BẤM PHÁT ÂM & LỰA CHỌN THẦY BÓI KHÁC NGAY TRÊN CÙNG DÒNG */}
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 pb-3 mb-4 border-b border-amber-500/30">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Nút tiêu đề có thể click để nhân vật lập tức cất tiếng nói */}
+          <button 
+            onClick={() => speakText(userChoice === 'yes' ? messages[messages.length - 1]?.text : initialIntroScript)}
+            className="flex items-center gap-2 group text-left cursor-pointer active:scale-95 transition"
+            title="Chạm vào đây để Thầy Bói cất tiếng nói chuyện!"
+          >
+            <span className="text-xl group-hover:rotate-180 transition-transform duration-700">☯</span>
+            <h2 className="font-mystic text-lg sm:text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-500 group-hover:from-yellow-200 group-hover:to-amber-300 underline decoration-amber-400/30 underline-offset-4">
+              Thầy Bói Giang Hồ
+            </h2>
+            <Volume2 className={`w-4 h-4 text-amber-400 ${isSpeaking ? 'animate-bounce' : 'opacity-80 group-hover:opacity-100'}`} />
+          </button>
 
-          {isSpeaking && (
-            <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 text-xs font-semibold animate-pulse">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              <span>Đang nói chuyện (Khẩu hình đồng bộ)...</span>
-              <span className="flex items-end gap-0.5 h-3 ml-1">
-                <span className="w-0.5 h-2 bg-emerald-400 animate-bounce" />
-                <span className="w-0.5 h-3 bg-emerald-400 animate-bounce delay-75" />
-                <span className="w-0.5 h-1.5 bg-emerald-400 animate-bounce delay-150" />
-              </span>
+          {/* CÁC LỰA CHỌN THẦY BÓI KHÁC NGAY TRÊN CÙNG DÒNG */}
+          <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 border-l border-amber-500/40 pl-3">
+            <span className="text-[11px] font-bold text-amber-300/80 hidden sm:inline flex items-center gap-1">
+              <Sparkles className="w-3 h-3 text-amber-400" />
+              <span>Đổi thầy:</span>
             </span>
-          )}
+
+            <button
+              onClick={() => {
+                setCurrentFortuneTellerStyle('manga_cool');
+                speakText("Thiên Cơ Chân Nhân ta đây! Có điều gì trăn trở cứ việc cất lời.");
+              }}
+              className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition whitespace-nowrap flex items-center gap-1 ${
+                currentFortuneTellerStyle === 'manga_cool'
+                  ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 border-white shadow-md shadow-amber-500/40'
+                  : 'bg-slate-900 text-amber-400 border-amber-500/30 hover:text-white'
+              }`}
+            >
+              <span>🕶️ Manga Ngầu</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setCurrentFortuneTellerStyle('hooded_green');
+                speakText("Ta là nữ tiên tri áo choàng xanh. Linh khí đang vây quanh ta.");
+              }}
+              className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition whitespace-nowrap flex items-center gap-1 ${
+                currentFortuneTellerStyle === 'hooded_green'
+                  ? 'bg-emerald-600 text-white border-amber-300 shadow-md'
+                  : 'bg-slate-900 text-slate-300 border-slate-700 hover:text-white'
+              }`}
+            >
+              <span>🟢 Áo Choàng Xanh</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setCurrentFortuneTellerStyle('turban_tarot');
+                speakText("Lá bài Tarot sẽ chỉ lối cho vận mệnh tương lai của bạn.");
+              }}
+              className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition whitespace-nowrap flex items-center gap-1 ${
+                currentFortuneTellerStyle === 'turban_tarot'
+                  ? 'bg-purple-600 text-white border-amber-300 shadow-md'
+                  : 'bg-slate-900 text-slate-300 border-slate-700 hover:text-white'
+              }`}
+            >
+              <span>🟣 Turban & Tarot</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setCurrentFortuneTellerStyle('crystal_maiden');
+                speakText("Cầu pha lê sẽ phản chiếu những điều chưa tỏ trong tâm can.");
+              }}
+              className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition whitespace-nowrap flex items-center gap-1 ${
+                currentFortuneTellerStyle === 'crystal_maiden'
+                  ? 'bg-cyan-600 text-white border-amber-300 shadow-md'
+                  : 'bg-slate-900 text-slate-300 border-slate-700 hover:text-white'
+              }`}
+            >
+              <span>🔮 Cầu Pha Lê</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setCurrentFortuneTellerStyle('crimson_sorceress');
+                speakText("Hồng Y Nữ Vu bấm quẻ càn khôn, định đoạt cát hung!");
+              }}
+              className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition whitespace-nowrap flex items-center gap-1 ${
+                currentFortuneTellerStyle === 'crimson_sorceress'
+                  ? 'bg-red-700 text-white border-amber-300 shadow-md'
+                  : 'bg-slate-900 text-slate-300 border-slate-700 hover:text-white'
+              }`}
+            >
+              <span>🔴 Hồng Y</span>
+            </button>
+          </div>
         </div>
 
+        {/* NÚT TRẠNG THÁI NÓI CHUYỆN */}
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => speakText(userChoice === 'yes' ? messages[messages.length - 1]?.text : initialIntroScript)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-400/50 transition active:scale-95 shadow"
-            title="Nghe lại lời thoại"
-          >
-            <Volume2 className={`w-3.5 h-3.5 text-amber-400 ${isSpeaking ? 'animate-bounce' : ''}`} />
-            <span>{isSpeaking ? 'Đang đọc...' : 'Nghe lại'}</span>
-          </button>
+          {isSpeaking ? (
+            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 text-xs font-semibold animate-pulse">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <span>Đang cất tiếng nói...</span>
+            </span>
+          ) : (
+            <span className="text-[11px] text-amber-400/70 hidden sm:inline italic">
+              (Bấm vào tiêu đề để nghe nói)
+            </span>
+          )}
         </div>
       </div>
 
@@ -394,7 +548,15 @@ export const AnimeGuide: React.FC<AnimeGuideProps> = ({ onQuickQuestion, onNavig
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
               <span className="font-mystic font-bold text-amber-300 text-xs tracking-wide">
-                Nữ Tiên Tri Quả Cầu Ma Thuật
+                {currentFortuneTellerStyle === 'manga_cool' 
+                  ? 'Thiên Cơ Chân Nhân' 
+                  : currentFortuneTellerStyle === 'hooded_green'
+                  ? 'Nữ Tiên Tri Áo Xanh'
+                  : currentFortuneTellerStyle === 'turban_tarot'
+                  ? 'Bà Bói Turban Tarot'
+                  : currentFortuneTellerStyle === 'crystal_maiden'
+                  ? 'Tiên Nữ Cầu Pha Lê'
+                  : 'Hồng Y Nữ Vu'}
               </span>
             </div>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-amber-900/80 text-amber-200 border-amber-500/50">
@@ -408,6 +570,8 @@ export const AnimeGuide: React.FC<AnimeGuideProps> = ({ onQuickQuestion, onNavig
               isSpeaking={isSpeaking}
               mood={characterMood}
               userChoice={userChoice}
+              currentStyle={currentFortuneTellerStyle}
+              onStyleChange={(st) => setCurrentFortuneTellerStyle(st)}
               onSelectYes={handleSelectYes}
               onSelectNo={handleSelectNo}
               onCharacterClick={() => speakText(userChoice === 'yes' ? messages[messages.length - 1]?.text : initialIntroScript)}
@@ -431,10 +595,10 @@ export const AnimeGuide: React.FC<AnimeGuideProps> = ({ onQuickQuestion, onNavig
           </div>
         </div>
 
-        {/* CỘT PHẢI: KHUNG ĐỐI THOẠI & LỰA CHỌN CÁC MÔN XEM */}
-        <div className="lg:col-span-7 flex flex-col justify-between bg-slate-950/90 border border-amber-400/40 rounded-3xl p-4 shadow-xl">
+        {/* CỘT PHẢI: KHUNG ĐỐI THOẠI & LỰA CHỌN CÁC MÔN XEM (NỀN XUYÊN THẤU GLASSMORPHISM ĐẲNG CẤP) */}
+        <div className="lg:col-span-7 flex flex-col justify-between bg-slate-950/60 backdrop-blur-xl border border-amber-400/40 rounded-3xl p-4 shadow-2xl shadow-purple-950/50">
           
-          <div className="flex items-center justify-between pb-2.5 border-b border-slate-800">
+          <div className="flex items-center justify-between pb-2.5 border-b border-amber-500/20">
             <div className="flex items-center gap-2">
               <MessageSquareHeart className="w-4 h-4 text-amber-400" />
               <h3 className="font-mystic text-sm font-bold text-amber-300">
@@ -456,7 +620,7 @@ export const AnimeGuide: React.FC<AnimeGuideProps> = ({ onQuickQuestion, onNavig
             </button>
           </div>
 
-          {/* Lịch sử trò chuyện */}
+          {/* Lịch sử trò chuyện với nền tin nhắn xuyên thấu mờ ảo */}
           <div 
             ref={chatScrollRef}
             className="flex-1 my-2.5 space-y-2.5 max-h-[240px] sm:max-h-[260px] overflow-y-auto pr-1"
@@ -468,10 +632,10 @@ export const AnimeGuide: React.FC<AnimeGuideProps> = ({ onQuickQuestion, onNavig
                   key={msg.id}
                   className={`flex items-start gap-2 ${isLinhNhi ? 'justify-start' : 'justify-end'}`}
                 >
-                  <div className={`max-w-[90%] sm:max-w-[85%] rounded-2xl p-3 text-xs sm:text-sm shadow leading-relaxed ${
+                  <div className={`max-w-[90%] sm:max-w-[85%] rounded-2xl p-3 text-xs sm:text-sm shadow-lg leading-relaxed backdrop-blur-md ${
                     isLinhNhi
-                      ? 'bg-slate-900 border border-amber-400/40 text-slate-100 rounded-tl-sm'
-                      : 'bg-gradient-to-r from-purple-800 to-indigo-700 text-white rounded-tr-sm'
+                      ? 'bg-slate-900/65 border border-amber-400/35 text-slate-100 rounded-tl-sm shadow-purple-950/40'
+                      : 'bg-gradient-to-r from-purple-800/80 to-indigo-700/80 border border-purple-400/30 text-white rounded-tr-sm shadow-indigo-950/40'
                   }`}>
                     <div className="flex items-center justify-between gap-3 mb-1 text-[10px] text-amber-300 font-semibold">
                       <span>{isLinhNhi ? '☯ Thầy Bói Giang Hồ' : '👤 Bạn'}</span>
@@ -546,72 +710,88 @@ export const AnimeGuide: React.FC<AnimeGuideProps> = ({ onQuickQuestion, onNavig
                 </div>
               </div>
             ) : userChoice === 'yes' ? (
-              /* KHI CHỌN CÓ: HIỆN CÁC PHƯƠNG PHÁP XEM ĐỂ NGƯỜI DÙNG BẮT ĐẦU */
+              /* KHI CHỌN ĐỒNG Ý: NẾU CHƯA CÓ TÊN THÌ HỎI TÊN, NẾU CÓ RỒI THÌ CHỈ HIỆN 3 LỰA CHỌN CƠ BẢN */
               <div className="space-y-2 mb-2">
-                <div className="flex items-center justify-between px-1">
-                  <span className="text-[11px] text-amber-300 font-semibold flex items-center gap-1">
-                    <Sparkle className="w-3 h-3 text-amber-400" />
-                    <span>Chọn phương pháp bạn muốn xem:</span>
-                  </span>
-                  <button
-                    onClick={() => {
-                      setUserChoice(null);
-                      setMessages([messages[0]]);
-                      speakText(initialIntroScript);
+                {!userName ? (
+                  /* BƯỚC 1: HỎI HỌ TÊN NGƯỜI DÙNG */
+                  <form 
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleConfirmName();
                     }}
-                    className="text-[10px] text-slate-400 hover:text-amber-300 underline"
+                    className="p-3 bg-slate-900/80 backdrop-blur-md rounded-2xl border border-amber-400/40 space-y-2 shadow-lg"
                   >
-                    Hỏi lại Có / Không
-                  </button>
-                </div>
+                    <div className="flex items-center gap-2 text-xs font-bold text-amber-300">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Nhập quý danh của bạn:</span>
+                    </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-                  <button
-                    onClick={() => onNavigateTab && onNavigateTab('tuvi')}
-                    className="text-xs bg-slate-900 hover:bg-slate-800 text-amber-300 border border-slate-700 hover:border-amber-400/50 px-2.5 py-1.5 rounded-lg transition text-left"
-                  >
-                    📜 Xem qua Tử Vi
-                  </button>
-                  <button
-                    onClick={() => onNavigateTab && onNavigateTab('compass')}
-                    className="text-xs bg-slate-900 hover:bg-slate-800 text-emerald-300 border border-slate-700 hover:border-emerald-400/50 px-2.5 py-1.5 rounded-lg transition text-left"
-                  >
-                    🧭 La Bàn Bát Trạch
-                  </button>
-                  <button
-                    onClick={() => onNavigateTab && onNavigateTab('numerology')}
-                    className="text-xs bg-slate-900 hover:bg-slate-800 text-indigo-300 border border-slate-700 hover:border-indigo-400/50 px-2.5 py-1.5 rounded-lg transition text-left"
-                  >
-                    🔢 Thần Số Học
-                  </button>
-                  <button
-                    onClick={() => onNavigateTab && onNavigateTab('love_match')}
-                    className="text-xs bg-slate-900 hover:bg-slate-800 text-rose-300 border border-slate-700 hover:border-rose-400/50 px-2.5 py-1.5 rounded-lg transition text-left"
-                  >
-                    ❤️ Hợp Duyên Bát Tự
-                  </button>
-                  <button
-                    onClick={() => onNavigateTab && onNavigateTab('facepalm')}
-                    className="text-xs bg-slate-900 hover:bg-slate-800 text-purple-300 border border-slate-700 hover:border-purple-400/50 px-2.5 py-1.5 rounded-lg transition text-left"
-                  >
-                    👁️ Chỉ Tay & Tướng Mặt
-                  </button>
-                  <button
-                    onClick={() => onNavigateTab && onNavigateTab('western')}
-                    className="text-xs bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-slate-700 hover:border-cyan-400/50 px-2.5 py-1.5 rounded-lg transition text-left"
-                  >
-                    🃏 Bài Tarot
-                  </button>
-                </div>
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="text"
+                        value={nameInput}
+                        onChange={(e) => setNameInput(e.target.value)}
+                        placeholder="Ví dụ: Nguyễn Văn An, Thùy Linh..."
+                        autoFocus
+                        className="flex-1 bg-slate-950/80 border border-amber-500/40 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
+                      />
+                      <button
+                        type="submit"
+                        className="px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 text-xs font-extrabold rounded-xl shadow active:scale-95 transition whitespace-nowrap"
+                      >
+                        Xác nhận
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  /* BƯỚC 2: CHỈ CHO CHỌN 3 MỤC CƠ BẢN (TỬ VI, CHỈ TAY, TƯỚNG MẠO) */
+                  <div className="p-3 bg-slate-900/70 backdrop-blur-md rounded-2xl border border-amber-400/30 space-y-2">
+                    <div className="flex items-center justify-between text-xs font-bold text-amber-300">
+                      <span>Chọn phương pháp luận đoán:</span>
+                      <button
+                        onClick={() => {
+                          setUserName('');
+                          setNameInput('');
+                        }}
+                        className="text-[10px] text-slate-400 hover:text-amber-300 underline font-normal"
+                      >
+                        Đổi tên ({userName})
+                      </button>
+                    </div>
 
-                {/* Gợi ý gieo quẻ Kinh Dịch xem cát hung trước */}
-                <button
-                  onClick={handleDecideIChing}
-                  className="w-full text-xs bg-gradient-to-r from-purple-900/60 to-indigo-900/60 hover:from-purple-900 hover:to-indigo-900 text-amber-300 border border-amber-400/50 font-bold px-3 py-1.5 rounded-xl transition flex items-center justify-center gap-1.5 shadow"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Chưa chọn được? Gieo quẻ Kinh Dịch xem trước cát/hung sắp tới</span>
-                </button>
+                    <div className="grid grid-cols-3 gap-2">
+                      {/* LỰA CHỌN 1: XEM TỬ VI */}
+                      <button
+                        onClick={() => onNavigateTab && onNavigateTab('tuvi')}
+                        className="p-2.5 rounded-xl bg-slate-950/80 hover:bg-slate-800 border border-amber-500/30 hover:border-amber-400 text-center transition flex flex-col items-center justify-center gap-1 group shadow active:scale-95"
+                      >
+                        <span className="text-lg group-hover:scale-110 transition-transform">📜</span>
+                        <span className="text-xs font-bold text-amber-300">Xem Tử Vi</span>
+                        <span className="text-[10px] text-slate-400">Vận số cả đời</span>
+                      </button>
+
+                      {/* LỰA CHỌN 2: XEM CHỈ TAY */}
+                      <button
+                        onClick={() => onNavigateTab && onNavigateTab('facepalm')}
+                        className="p-2.5 rounded-xl bg-slate-950/80 hover:bg-slate-800 border border-cyan-500/30 hover:border-cyan-400 text-center transition flex flex-col items-center justify-center gap-1 group shadow active:scale-95"
+                      >
+                        <span className="text-lg group-hover:scale-110 transition-transform">✋</span>
+                        <span className="text-xs font-bold text-cyan-300">Xem Chỉ Tay</span>
+                        <span className="text-[10px] text-slate-400">Đường chỉ vận mệnh</span>
+                      </button>
+
+                      {/* LỰA CHỌN 3: XEM TƯỚNG MẠO */}
+                      <button
+                        onClick={() => onNavigateTab && onNavigateTab('facepalm')}
+                        className="p-2.5 rounded-xl bg-slate-950/80 hover:bg-slate-800 border border-purple-500/30 hover:border-purple-400 text-center transition flex flex-col items-center justify-center gap-1 group shadow active:scale-95"
+                      >
+                        <span className="text-lg group-hover:scale-110 transition-transform">👁️</span>
+                        <span className="text-xs font-bold text-purple-300">Xem Tướng Mạo</span>
+                        <span className="text-[10px] text-slate-400">Khuôn mặt & Khí sắc</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               /* KHI CHỌN KHÔNG: HIỆN LỜI NHẮC VÀ NÚT ĐỔI Ý */

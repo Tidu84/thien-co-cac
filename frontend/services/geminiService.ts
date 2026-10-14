@@ -248,6 +248,82 @@ Thầy nhận xét: Đức năng thắng số, tâm an thì vạn sự ắt làn
 }
 
 /**
+ * Hỏi Thầy Bói Giang Hồ chuyên sâu về lá số Tử Vi (vận hạn 10 năm, việc cụ thể, hóa giải sao...)
+ */
+export async function askTuViDeepDiveQuestion(
+  profileSummary: {
+    fullName: string;
+    gender: string;
+    canChiYear: string;
+    menhNguHanh: string;
+    cuc: string;
+    cungMenh: string;
+    cungThan: string;
+  },
+  question: string
+): Promise<string> {
+  try {
+    const ai = getAiClient();
+    const prompt = `Bạn là Thầy Bói Giang Hồ đại sư Tử Vi Đẩu Số và nhân tướng học Á Đông.
+Đương số: ${profileSummary.fullName} (${profileSummary.gender === 'nam' ? 'Nam Mạng' : 'Nữ Mạng'}), tuổi ${profileSummary.canChiYear}, bản mệnh ${profileSummary.menhNguHanh}, Cục: ${profileSummary.cuc}, Cung Mệnh tại ${profileSummary.cungMenh}, Cung Thân tại ${profileSummary.cungThan}.
+
+Câu hỏi cần giải đáp chuyên sâu:
+"${question}"
+
+YÊU CẦU TRẢ LỜI:
+- Trả lời bằng phong thái Thầy Bói Giang Hồ: hào sảng, sắc bén, chân thành, gãy gọn (khoảng 70 - 130 từ).
+- Luận rõ thời cơ, nguy cơ và đưa ra 1 lời khuyên thực tế để chuyển hung hóa cát.
+- Có thể dùng 1 câu khẩu quyết hoặc vần điệu ngắn gọn cuối câu.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: {
+        role: 'user',
+        parts: [{ text: prompt }]
+      }
+    });
+
+    return response.text || generateOfflineTuViAnswer(profileSummary, question);
+  } catch (error) {
+    console.error("Gemini TuVi Deep Dive error:", error);
+    return generateOfflineTuViAnswer(profileSummary, question);
+  }
+}
+
+function generateOfflineTuViAnswer(
+  profileSummary: {
+    fullName: string;
+    gender: string;
+    canChiYear: string;
+    menhNguHanh: string;
+    cuc: string;
+    cungMenh: string;
+    cungThan: string;
+  },
+  question: string
+): string {
+  const qLower = question.toLowerCase();
+
+  if (qLower.includes('việc') || qLower.includes('công việc') || qLower.includes('đổi việc') || qLower.includes('thăng tiến') || qLower.includes('sự nghiệp')) {
+    return `Chiếu theo cung Quan Lộc và bản mệnh ${profileSummary.menhNguHanh} (${profileSummary.canChiYear}), năm nay đương số có thời vận chuyển động. Nếu đổi việc hay khởi sự mới, nên chọn tháng 8 hoặc tháng 10 âm lịch khi quý nhân tương trợ. Tránh nóng vội hấp tấp giữa năm kẻo dính khẩu thiệt thị phi. Vững tâm giữ chữ tín, ắt có công danh rực rỡ!`;
+  }
+
+  if (qLower.includes('tiền') || qLower.includes('tài chính') || qLower.includes('đầu tư') || qLower.includes('kinh doanh') || qLower.includes('làm ăn') || qLower.includes('giàu')) {
+    return `Cung Tài Bạch của đương số đắc cách tích lũy, tiền vào như nước nhưng cũng dễ hao tán do chi tiêu rộng rãi. Đầu tư năm nay cần chọn tài sản thực chất, tránh lướt sóng mạo hiểm. Người mang mệnh ${profileSummary.menhNguHanh} nên hợp tác cùng người mệnh Thổ hoặc Kim để giữ vững kho tiền tài, hậu vận điền sản dư dả!`;
+  }
+
+  if (qLower.includes('tình') || qLower.includes('duyên') || qLower.includes('hôn nhân') || qLower.includes('người yêu') || qLower.includes('vợ') || qLower.includes('chồng')) {
+    return `Cung Phu Thê và Thân cư ${profileSummary.cungThan} cho thấy duyên phận của bạn tiền định sâu đậm nhưng cần vượt qua giai đoạn tôi luyện cái tôi. Người bạn đời là người có tài, cá tính rõ ràng. Lời khuyên của thầy: "Lạt mềm buộc chặt", bớt một câu tranh cãi là thêm mười phần phúc khí, gia đạo ắt êm ấm hạnh phúc!`;
+  }
+
+  if (qLower.includes('sức khỏe') || qLower.includes('bệnh') || qLower.includes('tai ương') || qLower.includes('hạn')) {
+    return `Cung Tật Ách của tuổi ${profileSummary.canChiYear} chủ yếu lưu ý hệ tiêu hóa và áp lực tinh thần do suy nghĩ quá nhiều. Hạn chế thức khuya và chú ý đi lại sông nước vào tháng 5 âm lịch. Tâm bình thì khí hòa, năng phóng sinh hoặc làm việc thiện sẽ giải trừ mọi hung tinh quấy phá!`;
+  }
+
+  return `Thầy bói bấm đốt ngón tay soi lá số của bạn (${profileSummary.canChiYear} - ${profileSummary.menhNguHanh}): Thời vận đang trong chu kỳ tích lũy để bùng nổ. Về việc "${question}", thiên cơ mách bảo hãy hành sự cẩn trọng nhưng quyết đoán, tin vào trực giác và đạo đức bản thân. Đức năng thắng số, thời cơ chín muồi ắt vạn sự hanh thông!`;
+}
+
+/**
  * AI Luận Giải Chi Tiết Thần Số Học Pythagoras (Numerology)
  */
 export async function analyzeNumerologyWithGemini(report: NumerologyReport): Promise<string> {
@@ -355,40 +431,95 @@ Viết với văn phong trang nhã, ấm áp, thấu tình đạt lý, truyền 
 }
 
 /**
- * Phân tích Nhân Tướng Học (Tướng Khuôn Mặt hoặc Tướng Chỉ Tay) qua ảnh base64
+ * Phân tích Nhân Tướng Học (Tướng Khuôn Mặt, Tướng Chỉ Tay hoặc Tướng Toàn Thân) qua ảnh base64
  */
 export async function analyzeFaceOrPalmWithGemini(
   imageBase64: string,
-  type: 'face' | 'palm'
+  type: 'face' | 'palm' | 'body',
+  sampleDetail?: { name: string; description: string; analysisDetail: string },
+  personName?: string,
+  handSide?: 'left' | 'right',
+  gender?: 'nam' | 'nu'
 ): Promise<string> {
+  const displayName = personName?.trim() || 'Hữu Duyên Khách';
+  const handLabel = handSide === 'right' ? 'Tay Phải (Nữ Hữu)' : 'Tay Trái (Nam Tả)';
+  const genderLabel = gender === 'nu' ? 'Nữ mạng' : 'Nam mạng';
+
   try {
     const ai = getAiClient();
     const mimeType = imageBase64.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
     const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
 
-    const prompt = type === 'face'
-      ? `Bạn là một bậc thầy Nhân Tướng Học (Tướng Pháp Ma Y thần tướng & Liễu Trang tướng pháp).
-Hãy nhìn bức ảnh khuôn mặt này và phân tích tướng mạo cát hung theo nguyên lý nhân diện truyền thống:
-1. Tam Đình (Thượng Đình - Trán, Trung Đình - Mắt & Mũi, Hạ Đình - Miệng & Cằm): Sự cân đối và vận thế thiếu - trung - hậu vận.
-2. Ngũ Quan:
-   - Trán (Thiên Đình): Trí tuệ, đường học vấn & phúc ấm tiền nhân.
-   - Mắt (Nhãn thần): Tâm tính, sự kiên định, thần khí quang minh.
-   - Mũi (Tài Bạch tinh): Đường tiền tài, năng lực giữ tiền.
-   - Cằm & Miệng (Địa Các & Xuất Nạp quan): Hậu vận, con cháu, phước lộc về già.
-3. Khí sắc hiện tại và điềm lành vận thế.
-4. Lời khuyên tu tâm dưỡng tướng, cải thiện vận mệnh.
+    let prompt = '';
+    if (type === 'face') {
+      prompt = `Bạn là một bậc thầy Nhân Tướng Học (Tướng Pháp Ma Y thần tướng & Liễu Trang tướng pháp).
+Hãy nhìn bức ảnh khuôn mặt của đương số: "${displayName}" (${genderLabel}) và phân tích tướng mạo cát hung.
+BƯỚC 1: XÁC ĐỊNH & PHÂN LOẠI khuôn mặt thuộc kiểu tướng mạo nào (ví dụ: Tướng Mặt Phúc Hậu Chuẩn Mực, Tướng Mặt Uy Nghi Quyền Biến, Tướng Mặt Thanh Tú Trí Tuệ...).
+BƯỚC 2: Luận giải chi tiết theo định dạng thẻ:
 
-(Lưu ý: Luôn mang tính xây dựng, hướng thiện, truyền cảm hứng tích cực, tôn trọng nhân phẩm).`
-      : `Bạn là bậc thầy Xem Chỉ Tay (Thủ Tướng Học Đông Tây kết hợp).
-Hãy nhìn bức ảnh lòng bàn tay này và luận giải các gò cùng đường chỉ tay:
-1. Đường Sinh Đạo (Đường đời): Thể lực, sức bền, sinh khí và đại vận cuộc đời.
-2. Đường Trí Đạo (Đường trí tuệ): Khả năng tư duy, óc sáng tạo, học thức và ra quyết định.
-3. Đường Tâm Đạo (Đường tình cảm): Tính cách tình cảm, nhân duyên, sự ấm áp trong các mối quan hệ.
-4. Đường Định Mệnh / Thái Dương (nếu thấy): Sự nghiệp, quý nhân và tài lộc.
-5. Các Gò Nổi Trội (Gò Kim Tinh, Gò Mộc Tinh, Gò Thủy Tinh...): Khí chất trời ban.
-6. Lời khuyên để phát huy điểm mạnh bàn tay vàng.
+[PHAN_LOAI] <Tên kiểu diện mạo được phân loại> (Độ tương hợp: 92% - 98%) [/PHAN_LOAI]
+[DAC_DIEM]
+- Tam Đình (Thượng Đình - Trán, Trung Đình - Mắt & Mũi, Hạ Đình - Miệng & Cằm)
+- Ngũ Quan (Thiên Đình, Nhãn thần, Tài Bạch tinh, Địa Các)
+[/DAC_DIEM]
+[LUAN_BAN]
+Luận bàn sự nghiệp, phúc lộc, hôn nhân và vận thế các giai đoạn cuộc đời cho ${displayName}.
+[/LUAN_BAN]
+[LOI_KHUYEN]
+Lời khuyên tu tâm dưỡng tướng và kích hoạt vượng khí.
+[/LOI_KHUYEN]`;
+    } else if (type === 'palm') {
+      prompt = `Bạn là bậc thầy Xem Chỉ Tay (Thủ Tướng Học Đông Tây kết hợp, am hiểu sâu sắc các nghiên cứu của Bác sĩ Josef Ranald, Ernst Issberner - Haldane Berlin 1922, Henry Rem và Cổ thư Á Đông).
+Đương số: "${displayName}" (${genderLabel}, chụp ${handLabel}).
 
-Trình bày mạch lạc, uyên bác và đem lại năng lượng tích cực.`;
+BƯỚC QUAN TRỌNG NHẤT:
+Hãy quan sát thật kỹ bức ảnh lòng bàn tay của ${displayName} và PHÂN LOẠI CỤ THỂ xem lòng bàn tay này thuộc về kiểu nào trong 12 dạng chuẩn sau:
+1. Chỉ Tay Chữ M Cát Tường (Sinh Đạo, Trí Đạo, Tâm Đạo kết hợp đường Định Mệnh thành chữ M)
+2. Chỉ Tay Chữ Nhất (Simian Line / Quán Thông Thủ - Tâm Đạo và Trí Đạo chập một đường vắt ngang)
+3. Chỉ Tay Thỏi Vàng (Nguyên Bảo - đan kín thành thỏi vàng tụ tài)
+4. Ba Đường Tam Tài Cát Tướng (Sinh Đạo, Trí Đạo, Tâm Đạo sâu dài, mềm mại, song hành cát lợi)
+5. Chỉ Tay Chữ X Thần Bí (Chữ thập X giữa Trí Đạo và Tâm Đạo)
+6. Đường Trí Đạo Đuôi Cá (Đuôi đường trí tuệ rẽ nhánh cá uyên bác)
+7. Bàn Tay Nóng Nảy / Hỏa Tướng (Theo BS. Josef Ranald - da đỏ hồng, nhiều vân phụ li ti đan chéo)
+8. Bàn Tay Lãnh Đạm / Thủy Tướng (Theo BS. Josef Ranald - lòng tay mềm dày, ít đường chỉ, da trắng nhạt)
+9. Bàn Tay Tự Ái / Hờn Giận / Kim Tướng (Theo BS. Josef Ranald - lòng bàn tay trũng sâu, ngón cái rất dài)
+10. Bàn Tay Ương Ngạnh / Thổ Tướng (Theo BS. Josef Ranald - tay dày chắc nịch, gò Kim Tinh nổi gồ)
+11. Ngón Cái Bay & Gò Kim Tinh Vượng (Tướng Danh Nhân Henry Rem)
+12. Tiểu Thủ Mẫn Tiệp (Bàn tay nhỏ nhắn mẫn tiệp, gò Thái Dương sáng)
+
+BẮT BUỘC ĐỊNH DẠNG ĐẦU RA THEO CÁC THẺ SAU:
+[PHAN_LOAI] <Tên kiểu chỉ tay cụ thể được xếp loại> (Độ tương hợp: 90% - 98%) [/PHAN_LOAI]
+[DAC_DIEM]
+<Mô tả đặc điểm nhận dạng cụ thể trên lòng bàn tay: hình thế bàn tay (${handLabel}), độ sâu và đường đi của Sinh Đạo, Trí Đạo, Tâm Đạo cùng các gò Thái Dương, Kim Tinh, Mộc Tinh>
+[/DAC_DIEM]
+[LUAN_BAN]
+<Luận giải chi tiết vận mệnh, sự nghiệp, tài lộc, tình duyên, hậu vận của ${displayName}>
+[/LUAN_BAN]
+[SUC_KHOE]
+<Khảo cứu bệnh lý y khoa & thần kinh theo Bác sĩ Josef Ranald>
+[/SUC_KHOE]
+[LOI_KHUYEN]
+<Lời khuyên phong thủy, tu dưỡng tâm tính để phát huy tối đa điềm lành>
+[/LOI_KHUYEN]`;
+    } else {
+      prompt = `Bạn là Đại Sư Hình Tướng Cốt Cách Học (Tướng Pháp Toàn Thân & Khí Phách Á Đông).
+Hãy nhìn bức ảnh dáng vóc toàn thân của đương số: "${displayName}" (${genderLabel}) và phân tích hình tướng.
+BẮT BUỘC ĐỊNH DẠNG ĐẦU RA THEO CÁC THẺ SAU:
+[PHAN_LOAI] <Tên kiểu cốt cách hình tướng: Long Hành Hổ Bộ / Cốt Cách Thanh Quý / Ngũ Hành Kim Mộc Thủy Hỏa Thổ> [/PHAN_LOAI]
+[DAC_DIEM]
+Tỷ lệ cơ thể, thế đứng, bờ vai, sống lưng và dáng dấp toát ra.
+[/DAC_DIEM]
+[LUAN_BAN]
+Đại vận sự nghiệp, uy quyền, tài lộc và độ vững vàng hậu vận cho ${displayName}.
+[/LUAN_BAN]
+[LOI_KHUYEN]
+Phương pháp bồi dưỡng chính khí và phong thái để chiêu tài tụ phúc.
+[/LOI_KHUYEN]`;
+    }
+
+    if (sampleDetail) {
+      prompt += `\n\nLƯU Ý CỔ THƯ: Bức ảnh này minh họa mẫu tướng: "${sampleDetail.name}". ${sampleDetail.description}. Hãy phân loại chính xác là "${sampleDetail.name}" và luận giải chuyên sâu bám sát vào mẫu này cho đương số ${displayName}!`;
+    }
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
@@ -406,12 +537,49 @@ Trình bày mạch lạc, uyên bác và đem lại năng lượng tích cực.`
       }
     });
 
-    return response.text || "Tướng mạo thanh quý, khí sắc tràn trề phúc lộc.";
+    return response.text || (sampleDetail?.analysisDetail || `[PHAN_LOAI] Tướng Mạo Cát Tường [/PHAN_LOAI]\n[LUAN_BAN] Tướng mạo của đương số ${displayName} thanh quý, khí sắc tràn trề phúc lộc. [/LUAN_BAN]`);
   } catch (error) {
     console.error("Gemini Vision Reading error:", error);
-    return type === 'face'
-      ? "Khuôn mặt có tướng mạo phúc hậu, trán cao biểu lộ tư duy thông tuệ, mắt có thần sắc kiên định. Hậu vận an khang, càng tích đức tu tâm thì tài lộc càng sung túc."
-      : "Lòng bàn tay đầy đặn, các đường chỉ tay Sinh Đạo - Trí Đạo rõ nét, chứng tỏ sinh lực dồi dào, tư duy mạch lạc và có quý nhân tương trợ trên đường lập nghiệp.";
+    if (sampleDetail?.analysisDetail) {
+      return sampleDetail.analysisDetail;
+    }
+    if (type === 'face') {
+      return `[PHAN_LOAI] Tướng Mặt Phúc Hậu Cát Tường (Độ tương hợp: 95%) [/PHAN_LOAI]
+[DAC_DIEM]
+Khuôn mặt của đương số ${displayName} có tỷ lệ Tam Đình cân đối, vầng trán cao rộng biểu lộ tư duy thông tuệ, ánh mắt có thần quang kiên định, Địa Các vững chãi.
+[/DAC_DIEM]
+[LUAN_BAN]
+Đương số có gốc rễ phúc ấm sâu dày, làm việc có trách nhiệm và giữ chữ tín. Trung vận công danh hanh thông, hậu vận an khang, con cháu hiếu thuận vinh hiển.
+[/LUAN_BAN]
+[LOI_KHUYEN]
+Giữ nụ cười hòa ái và tâm từ bi, "tướng tùy tâm sinh", phước đức sẽ ngày càng bồi đắp dồi dào.
+[/LOI_KHUYEN]`;
+    }
+    if (type === 'palm') {
+      return `[PHAN_LOAI] Ba Đường Tam Tài Cát Tướng (Độ tương hợp: 96%) [/PHAN_LOAI]
+[DAC_DIEM]
+Lòng bàn tay của đương số ${displayName} (${handLabel}) đầy đặn, sắc da hồng hào. Ba trục đại lộ Sinh Đạo - Trí Đạo - Tâm Đạo sâu dài, đường nét liền mạch không bị đứt đoạn, gò Kim Tinh nở nang vững chắc.
+[/DAC_DIEM]
+[LUAN_BAN]
+Sinh lực dồi dào, trí tuệ mạch lạc và có khả năng ứng biến linh hoạt. Đường sự nghiệp có quý nhân tương trợ, tài vận tích lũy bền vững, hậu vận đại phát điền sản.
+[/LUAN_BAN]
+[SUC_KHOE]
+Theo khảo cứu của Bác sĩ Josef Ranald: Khí huyết lưu thông điều hòa, sức bền tốt. Cần tránh thức khuya và giảm căng thẳng mắt khi làm việc với máy tính.
+[/SUC_KHOE]
+[LOI_KHUYEN]
+Phát huy trực giác nhạy bén, giữ vững chữ tín trong thương trường ắt vạn sự hanh thông cát lợi.
+[/LOI_KHUYEN]`;
+    }
+    return `[PHAN_LOAI] Cốt Cách Thanh Quý Tựa Thái Sơn (Độ tương hợp: 94%) [/PHAN_LOAI]
+[DAC_DIEM]
+Dáng vóc vững chãi, vai nở cân đối, thế đứng thẳng thắn tựa cây tùng trước gió.
+[/DAC_DIEM]
+[LUAN_BAN]
+Bản mệnh có chí khí phi thường, phong thái đĩnh đạc tạo niềm tin cậy cho cộng sự. Đại vận trung niên có quyền uy và danh vọng lớn.
+[/LUAN_BAN]
+[LOI_KHUYEN]
+Tập luyện khí công, đi đứng chững chạc để duy trì thần thái đế vương và tụ phúc khí dài lâu.
+[/LOI_KHUYEN]`;
   }
 }
 

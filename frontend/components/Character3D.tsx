@@ -8,9 +8,11 @@ interface Character3DProps {
   onSelectYes: () => void;
   onSelectNo: () => void;
   onCharacterClick?: () => void;
+  currentStyle?: FortuneTellerStyle;
+  onStyleChange?: (style: FortuneTellerStyle) => void;
 }
 
-export type FortuneTellerStyle = 'hooded_green' | 'turban_tarot' | 'crystal_maiden' | 'crimson_sorceress';
+export type FortuneTellerStyle = 'manga_cool' | 'hooded_green' | 'turban_tarot' | 'crystal_maiden' | 'crimson_sorceress';
 
 export const Character3D: React.FC<Character3DProps> = ({ 
   isSpeaking, 
@@ -18,10 +20,20 @@ export const Character3D: React.FC<Character3DProps> = ({
   userChoice, 
   onSelectYes, 
   onSelectNo, 
-  onCharacterClick 
+  onCharacterClick,
+  currentStyle: controlledStyle,
+  onStyleChange
 }) => {
-  // 4 Phong cách thầy bói chuẩn xác theo ảnh tham khảo
-  const [currentStyle, setCurrentStyle] = useState<FortuneTellerStyle>('hooded_green');
+  // Phong cách mặc định: Thầy bói Manga ngầu lòi (kính râm tròn, quạt càn khôn/tẩu thuốc, nụ cười bí hiểm)
+  const [internalStyle, setInternalStyle] = useState<FortuneTellerStyle>('manga_cool');
+  const currentStyle = controlledStyle || internalStyle;
+
+  const handleSelectStyle = (style: FortuneTellerStyle) => {
+    setInternalStyle(style);
+    if (onStyleChange) {
+      onStyleChange(style);
+    }
+  };
   
   // Tương tác theo dõi chuột (Eye & Head Tracking)
   const [lookPos, setLookPos] = useState({ x: 0, y: 0 });
@@ -112,6 +124,16 @@ export const Character3D: React.FC<Character3DProps> = ({
   };
 
   const styleConfigs = {
+    manga_cool: {
+      name: '🕶️ Thầy Bói Manga Đệ Nhất (Ngầu Lòi)',
+      hoodColor: '#0f172a',
+      hoodInner: '#020617',
+      trimColor: '#eab308',
+      eyeColor: '#f59e0b',
+      orbColor: '#38bdf8',
+      orbGlow: 'rgba(56, 189, 248, 0.85)',
+      description: 'Kính râm tròn đen gọng vàng sang chảnh, tẩu thuốc tiên khí, nụ cười bí hiểm tự tin'
+    },
     hooded_green: {
       name: 'Nữ Tiên Tri Áo Choàng Xanh (Hình 2)',
       hoodColor: '#064e3b',
@@ -182,7 +204,7 @@ export const Character3D: React.FC<Character3DProps> = ({
         <div className="w-52 h-52 rounded-full border border-purple-500/30" />
       </div>
 
-      {/* 2. NHÂN VẬT THẦY BÓI 3D PARALLAX CHUẨN THEO HÌNH ẢNH THAM KHẢO */}
+      {/* 2. NHÂN VẬT THẦY BÓI 3D PARALLAX */}
       <div 
         style={{
           transform: `rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg)`,
@@ -190,10 +212,56 @@ export const Character3D: React.FC<Character3DProps> = ({
         }}
         className="relative w-72 h-84 sm:w-80 sm:h-96 flex flex-col items-center justify-center filter drop-shadow-2xl"
       >
-        <svg 
-          viewBox="0 0 400 460" 
-          className="w-full h-full overflow-visible"
-        >
+        {currentStyle === 'manga_cool' ? (
+          /* TẠO HÌNH MANHWA / WEBTTOON CAO CẤP VỚI PARALLAX 3D, LÀN KHÓI TIÊN KHÍ VÀ LÁ BÀI BAY LƠ LỬNG */
+          <div className="relative w-full h-full rounded-3xl overflow-hidden border-2 border-amber-400/60 shadow-2xl bg-slate-950 group/art">
+            {/* Ảnh tranh vẽ Manhwa kiệt tác cao cấp */}
+            <img 
+              src="/assets/manga_master.jpg" 
+              alt="Thầy Bói Manga Đệ Nhất" 
+              className="w-full h-full object-cover object-top scale-105 group-hover/art:scale-110 transition-transform duration-700"
+            />
+
+            {/* LỚP SƯƠNG KHÓI MỜ MỜ TRÔI LƠ LỬNG (MYSTIC FOG AURA) */}
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/15 to-transparent pointer-events-none" />
+            
+            {/* Làn sương khói linh khí trôi dạt cuộn tròn bên dưới chân - CHUYỂN ĐỘNG TRÔI TỰ NHIÊN MƯỢT MÀ */}
+            <div className="absolute -bottom-8 -inset-x-10 h-36 bg-gradient-to-t from-cyan-500/20 via-purple-500/12 to-transparent blur-xl fog-anim-1 pointer-events-none" />
+            
+            {/* Làn khói trắng sương mù huyền ảo bay dạt từ trái qua phải */}
+            <div className="absolute bottom-6 -left-12 w-48 h-14 bg-cyan-200/15 rounded-full blur-xl fog-anim-2 pointer-events-none" />
+            <div className="absolute bottom-12 -right-12 w-48 h-14 bg-purple-200/15 rounded-full blur-xl fog-anim-1 pointer-events-none" />
+
+            {/* Vòng sáng sương khói chân nhân giáng thế */}
+            <div className="absolute bottom-2 inset-x-0 flex items-center justify-center pointer-events-none opacity-70">
+              <div className="w-56 h-12 bg-cyan-400/15 rounded-full blur-lg fog-anim-2" />
+            </div>
+
+            {/* HIỆU ỨNG KHẨU HÌNH & LINH LỰC PHÁT SÁNG KHI NÓI CHUYỆN */}
+            {isSpeaking && (
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-8 pointer-events-none flex flex-col items-center">
+                <span className="w-16 h-16 rounded-full border border-amber-300/40 animate-pulse opacity-75" />
+                <span className="px-3 py-1 mt-2 bg-gradient-to-r from-amber-500/90 to-yellow-400/90 text-slate-950 text-[11px] font-extrabold rounded-full shadow-lg shadow-amber-500/50 backdrop-blur-sm">
+                  Thiên Cơ Chân Nhân đang cất lời...
+                </span>
+              </div>
+            )}
+
+            {/* LÁ BÀI TAROT VÀ ĐỒNG XU LƠ LỬNG PHÍA TRƯỚC */}
+            <div className="absolute top-3 left-3 px-2 py-1 bg-slate-950/80 backdrop-blur-md rounded-lg border border-amber-400/40 flex items-center gap-1.5 shadow">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+              <span className="text-[10px] font-bold text-amber-300">Thiên Cơ Chân Nhân</span>
+            </div>
+
+            <div className="absolute top-3 right-3 px-2 py-1 bg-slate-950/80 backdrop-blur-md rounded-lg border border-cyan-400/40 flex items-center gap-1 shadow text-[10px] text-cyan-300 font-bold">
+              <span>☯ Bát Quái</span>
+            </div>
+          </div>
+        ) : (
+          <svg 
+            viewBox="0 0 400 460" 
+            className="w-full h-full overflow-visible"
+          >
           <defs>
             <linearGradient id="hoodGrad" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor={currentCfg.hoodColor} />
@@ -252,7 +320,27 @@ export const Character3D: React.FC<Character3DProps> = ({
           />
 
           {/* KIỂU KHĂN TURBAN (HÌNH 1) HOẶC ÁO CHOÀNG TRÙM ĐẦU (HÌNH 2 & 3) */}
-          {currentStyle === 'turban_tarot' ? (
+          {/* KIỂU ĐẦU / MŨ / TÓC: MANGA NGẦU, TURBAN HOẶC ÁO CHOÀNG */}
+          {currentStyle === 'manga_cool' ? (
+            <g id="mangaCoolHeadgear">
+              {/* Mũ/Khăn xếp hắc kim viền vàng phong cách đại sư giang hồ */}
+              <ellipse cx="200" cy="110" rx="96" ry="60" fill="#090d16" stroke="#f59e0b" strokeWidth="3.5" />
+              <path
+                d="M 105 125 C 130 65, 270 65, 295 125 C 265 140, 135 140, 105 125 Z"
+                fill="#1e293b"
+                stroke="#d97706"
+                strokeWidth="2.5"
+              />
+              {/* Ngọc bội Thái Cực Bát Quái đính trên mũ */}
+              <circle cx="200" cy="88" r="16" fill="#020617" stroke="#fbbf24" strokeWidth="3" />
+              <path d="M 200 72 A 8 8 0 0 1 200 88 A 8 8 0 0 0 200 104 A 16 16 0 0 1 200 72" fill="#f8fafc" />
+              <circle cx="200" cy="80" r="3" fill="#020617" />
+              <circle cx="200" cy="96" r="3" fill="#f8fafc" />
+
+              {/* Tóc mái Anime vuốt nhọn lãng tử phong trần */}
+              <path d="M 140 142 L 158 178 L 168 148 L 188 185 L 198 145 L 218 186 L 232 148 L 255 178 L 265 142 Z" fill="#0f172a" stroke="#020617" strokeWidth="2.5" />
+            </g>
+          ) : currentStyle === 'turban_tarot' ? (
             <g>
               <ellipse cx="200" cy="115" rx="95" ry="65" fill={currentCfg.hoodColor} stroke="#0f0b1e" strokeWidth="5" />
               <circle cx="200" cy="85" r="14" fill="#fbbf24" stroke="#0f0b1e" strokeWidth="3" />
@@ -305,69 +393,106 @@ export const Character3D: React.FC<Character3DProps> = ({
               strokeWidth="3"
             />
 
-            {/* MẮT TRÁI */}
-            <g id="leftEye" transform="translate(170, 192)">
-              <ellipse cx="0" cy="0" rx="16" ry={isBlinking ? 1 : 12} fill="#ffffff" stroke="#090514" strokeWidth="2.5" />
-              {!isBlinking && (
-                <>
-                  <ellipse 
-                    cx={lookPos.x * 0.4} 
-                    cy={lookPos.y * 0.3} 
-                    rx="10" 
-                    ry="11" 
-                    fill={currentCfg.eyeColor} 
-                  />
-                  <circle cx={lookPos.x * 0.4} cy={lookPos.y * 0.3} r="5.5" fill="#090514" />
-                  <circle cx={lookPos.x * 0.4 - 3} cy={lookPos.y * 0.3 - 3} r="3.2" fill="#ffffff" />
-                  <circle cx={lookPos.x * 0.4 + 3} cy={lookPos.y * 0.3 + 3} r="1.6" fill="#ffffff" />
-                </>
-              )}
-              <path d="M -18 -8 Q 0 -16 18 -6" fill="none" stroke="#090514" strokeWidth="4.5" strokeLinecap="round" />
-            </g>
+            {/* MẮT / KÍNH RÂM TRÒN ĐEN GỌNG VÀNG CỰC NGẦU CỦA MANGA HOẶC MẮT THẦN BÍ */}
+            {currentStyle === 'manga_cool' ? (
+              <g id="mangaCoolShades">
+                {/* Gọng nối 2 tròng kính */}
+                <path d="M 183 190 Q 200 186 217 190" fill="none" stroke="#fbbf24" strokeWidth="4.5" strokeLinecap="round" />
+                <path d="M 146 191 L 138 188" fill="none" stroke="#fbbf24" strokeWidth="3.5" strokeLinecap="round" />
+                <path d="M 254 191 L 262 188" fill="none" stroke="#fbbf24" strokeWidth="3.5" strokeLinecap="round" />
 
-            {/* MẮT PHẢI */}
-            <g id="rightEye" transform="translate(230, 192)">
-              <ellipse cx="0" cy="0" rx="16" ry={isBlinking ? 1 : 12} fill="#ffffff" stroke="#090514" strokeWidth="2.5" />
-              {!isBlinking && (
-                <>
-                  <ellipse 
-                    cx={lookPos.x * 0.4} 
-                    cy={lookPos.y * 0.3} 
-                    rx="10" 
-                    ry="11" 
-                    fill={currentCfg.eyeColor} 
-                  />
-                  <circle cx={lookPos.x * 0.4} cy={lookPos.y * 0.3} r="5.5" fill="#090514" />
-                  <circle cx={lookPos.x * 0.4 - 3} cy={lookPos.y * 0.3 - 3} r="3.2" fill="#ffffff" />
-                  <circle cx={lookPos.x * 0.4 + 3} cy={lookPos.y * 0.3 + 3} r="1.6" fill="#ffffff" />
-                </>
-              )}
-              <path d="M -18 -6 Q 0 -16 18 -8" fill="none" stroke="#090514" strokeWidth="4.5" strokeLinecap="round" />
-            </g>
+                {/* Tròng kính trái đen bóng gọng vàng */}
+                <circle cx="166" cy="192" r="21" fill="#0f172a" stroke="#f59e0b" strokeWidth="3.5" />
+                {/* Vệt phản quang ánh sáng anime chéo */}
+                <path d="M 152 182 L 176 174" stroke="#38bdf8" strokeWidth="3.5" strokeLinecap="round" opacity="0.9" />
+                <path d="M 156 195 L 170 190" stroke="#bae6fd" strokeWidth="2" strokeLinecap="round" opacity="0.75" />
 
-            {/* Lông mày nhướng cử động theo biểu cảm nói chuyện */}
-            <path 
-              d={`M 152 ${174 - mouthState.browLift} Q 170 ${166 - mouthState.browLift} 186 ${172 - mouthState.browLift}`} 
-              fill="none" 
-              stroke="#090514" 
-              strokeWidth="3.2" 
-              strokeLinecap="round" 
-            />
-            <path 
-              d={`M 248 ${174 - mouthState.browLift} Q 230 ${166 - mouthState.browLift} 214 ${172 - mouthState.browLift}`} 
-              fill="none" 
-              stroke="#090514" 
-              strokeWidth="3.2" 
-              strokeLinecap="round" 
-            />
+                {/* Tròng kính phải đen bóng gọng vàng */}
+                <circle cx="234" cy="192" r="21" fill="#0f172a" stroke="#f59e0b" strokeWidth="3.5" />
+                {/* Vệt phản quang ánh sáng anime chéo */}
+                <path d="M 220 182 L 244 174" stroke="#38bdf8" strokeWidth="3.5" strokeLinecap="round" opacity="0.9" />
+                <path d="M 224 195 L 238 190" stroke="#bae6fd" strokeWidth="2" strokeLinecap="round" opacity="0.75" />
 
-            <ellipse cx="200" cy="166" rx="2.5" ry="4" fill="#ef4444" />
-            <path d="M 198 206 L 202 216 L 196 217" fill="none" stroke="#d97706" strokeWidth="2.2" strokeLinecap="round" />
+                {/* Lông mày nhướng kiêu hãnh phong cách Manga */}
+                <path 
+                  d={`M 146 ${165 - mouthState.browLift} Q 166 ${156 - mouthState.browLift} 184 ${164 - mouthState.browLift}`} 
+                  fill="none" 
+                  stroke="#020617" 
+                  strokeWidth="4" 
+                  strokeLinecap="round" 
+                />
+                <path 
+                  d={`M 254 ${163 - mouthState.browLift * 1.3} Q 234 ${153 - mouthState.browLift * 1.3} 216 ${165 - mouthState.browLift * 1.3}`} 
+                  fill="none" 
+                  stroke="#020617" 
+                  strokeWidth="4" 
+                  strokeLinecap="round" 
+                />
+              </g>
+            ) : (
+              <>
+                {/* MẮT TRÁI */}
+                <g id="leftEye" transform="translate(170, 192)">
+                  <ellipse cx="0" cy="0" rx="16" ry={isBlinking ? 1 : 12} fill="#ffffff" stroke="#090514" strokeWidth="2.5" />
+                  {!isBlinking && (
+                    <>
+                      <ellipse 
+                        cx={lookPos.x * 0.4} 
+                        cy={lookPos.y * 0.3} 
+                        rx="10" 
+                        ry="11" 
+                        fill={currentCfg.eyeColor} 
+                      />
+                      <circle cx={lookPos.x * 0.4} cy={lookPos.y * 0.3} r="5.5" fill="#090514" />
+                      <circle cx={lookPos.x * 0.4 - 3} cy={lookPos.y * 0.3 - 3} r="3.2" fill="#ffffff" />
+                      <circle cx={lookPos.x * 0.4 + 3} cy={lookPos.y * 0.3 + 3} r="1.6" fill="#ffffff" />
+                    </>
+                  )}
+                  <path d="M -18 -8 Q 0 -16 18 -6" fill="none" stroke="#090514" strokeWidth="4.5" strokeLinecap="round" />
+                </g>
 
-            <ellipse cx="162" cy="220" rx="8" ry="4" fill="#f43f5e" opacity="0.45" />
-            <ellipse cx="238" cy="220" rx="8" ry="4" fill="#f43f5e" opacity="0.45" />
+                {/* MẮT PHẢI */}
+                <g id="rightEye" transform="translate(230, 192)">
+                  <ellipse cx="0" cy="0" rx="16" ry={isBlinking ? 1 : 12} fill="#ffffff" stroke="#090514" strokeWidth="2.5" />
+                  {!isBlinking && (
+                    <>
+                      <ellipse 
+                        cx={lookPos.x * 0.4} 
+                        cy={lookPos.y * 0.3} 
+                        rx="10" 
+                        ry="11" 
+                        fill={currentCfg.eyeColor} 
+                      />
+                      <circle cx={lookPos.x * 0.4} cy={lookPos.y * 0.3} r="5.5" fill="#090514" />
+                      <circle cx={lookPos.x * 0.4 - 3} cy={lookPos.y * 0.3 - 3} r="3.2" fill="#ffffff" />
+                      <circle cx={lookPos.x * 0.4 + 3} cy={lookPos.y * 0.3 + 3} r="1.6" fill="#ffffff" />
+                    </>
+                  )}
+                  <path d="M -18 -6 Q 0 -16 18 -8" fill="none" stroke="#090514" strokeWidth="4.5" strokeLinecap="round" />
+                </g>
 
-            {/* KHẨU HÌNH MIỆNG NÓI CHUYỆN LIP-SYNC SỐNG ĐỘNG */}
+                {/* Lông mày nhướng cử động theo biểu cảm nói chuyện */}
+                <path 
+                  d={`M 152 ${174 - mouthState.browLift} Q 170 ${166 - mouthState.browLift} 186 ${172 - mouthState.browLift}`} 
+                  fill="none" 
+                  stroke="#090514" 
+                  strokeWidth="3.2" 
+                  strokeLinecap="round" 
+                />
+                <path 
+                  d={`M 248 ${174 - mouthState.browLift} Q 230 ${166 - mouthState.browLift} 214 ${172 - mouthState.browLift}`} 
+                  fill="none" 
+                  stroke="#090514" 
+                  strokeWidth="3.2" 
+                  strokeLinecap="round" 
+                />
+              </>
+            )}
+
+            {/* Mũi thon phong cách Anime */}
+            <path d="M 198 206 L 202 216 L 196 217" fill="none" stroke="#c2410c" strokeWidth="2.2" strokeLinecap="round" />
+
+            {/* KHẨU HÌNH MIỆNG NÓI CHUYỆN LIP-SYNC SỐNG ĐỘNG (HOẶC NỤ CƯỜI NHẾCH MÉP TỰ TIN) */}
             <g transform={`translate(200, ${mouthYPos})`}>
               {mouthState.openY > 0.08 ? (
                 <g>
@@ -393,6 +518,24 @@ export const Character3D: React.FC<Character3DProps> = ({
                     strokeLinecap="round"
                   />
                 </g>
+              ) : currentStyle === 'manga_cool' ? (
+                /* Nụ cười nhếch mép ngạo nghễ đặc trưng Manga */
+                <g>
+                  <path
+                    d="M -12 -1 Q -2 8 15 -6"
+                    fill="none"
+                    stroke="#090514"
+                    strokeWidth="3.8"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M 12 -7 L 16 -3"
+                    fill="none"
+                    stroke="#090514"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                  />
+                </g>
               ) : (
                 <g>
                   <path
@@ -412,6 +555,29 @@ export const Character3D: React.FC<Character3DProps> = ({
                 </g>
               )}
             </g>
+
+            {/* TẨU THUỐC TIÊN KHÍ & LÀN KHÓI HUYỀN ẢO DÀNH CHO THẦY BÓI MANGA */}
+            {currentStyle === 'manga_cool' && (
+              <g id="mangaPipe">
+                {/* Tẩu thuốc gác bên khóe miệng */}
+                <path d="M 214 233 Q 235 240 252 235 L 256 226" fill="none" stroke="#78350f" strokeWidth="4.5" strokeLinecap="round" />
+                <path d="M 252 227 L 262 224 L 260 216 L 249 219 Z" fill="#f59e0b" stroke="#78350f" strokeWidth="2" />
+                {/* Đầu đóm lửa hồng le lói */}
+                <circle cx="255" cy="219" r="3.5" fill="#ef4444" className="animate-pulse" />
+                {/* Làn khói bay lượn chữ S */}
+                <path
+                  d="M 256 215 C 262 195, 248 185, 260 165 C 270 145, 285 135, 275 110"
+                  fill="none"
+                  stroke="#e2e8f0"
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                  opacity="0.6"
+                  className="animate-pulse"
+                />
+                <circle cx="265" cy="150" r="4" fill="#cbd5e1" opacity="0.4" />
+                <circle cx="278" cy="120" r="6" fill="#cbd5e1" opacity="0.3" />
+              </g>
+            )}
           </g>
 
           {/* LỚP 3: HAI BÀN TAY HUYỀN BÍ TRUYỀN NĂNG LƯỢNG QUẢ CẦU */}
@@ -491,107 +657,45 @@ export const Character3D: React.FC<Character3DProps> = ({
             <circle cx="162" cy="298" r="3" fill="#ffffff" opacity="0.9" />
           </g>
         </svg>
+        )}
       </div>
 
-      {/* 3. BẢNG HAI Ô LỰA CHỌN CÓ VÀ KHÔNG HIỆN NGAY BÊN CẠNH THẦY BÓI */}
+      {/* 3. BẢNG HAI Ô LỰA CHỌN THÂM SÂU: GỌN GÀNG, KHÔNG CHE MẶT, NỀN XUYÊN THẤU GLASSMORPHISM */}
       {userChoice === null && (
         <div 
           onClick={(e) => e.stopPropagation()}
-          className="absolute -right-2 sm:-right-4 top-16 sm:top-20 z-30 max-w-[190px] sm:max-w-[210px] bg-slate-950/95 backdrop-blur-md p-3 rounded-2xl border-2 border-amber-400 shadow-2xl shadow-purple-950/60 animate-bounce duration-[3000ms] cursor-default"
+          className="absolute right-1 sm:right-2 bottom-14 z-30 w-[170px] sm:w-[185px] bg-slate-950/65 backdrop-blur-xl p-2.5 rounded-xl border border-amber-400/70 shadow-2xl shadow-purple-950/60 cursor-default transition-all hover:scale-[1.02]"
         >
-          {/* Mũi tên chỉ từ bảng thoại sang nhân vật thầy bói */}
-          <div className="absolute top-6 -left-2.5 w-4 h-4 bg-slate-950 border-l-2 border-b-2 border-amber-400 transform rotate-45" />
-
-          <div className="flex items-center gap-1.5 text-amber-300 font-extrabold text-[11px] mb-2 leading-tight">
-            <Sparkles className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 animate-pulse" />
-            <span>Thầy bói hỏi bạn:</span>
+          <div className="flex items-center gap-1 text-amber-300 font-extrabold text-[10px] mb-1 leading-tight">
+            <Sparkles className="w-3 h-3 text-amber-400 flex-shrink-0 animate-pulse" />
+            <span>Cao nhân cất lời:</span>
           </div>
           
-          <p className="text-[11px] text-slate-200 leading-snug mb-3">
-            "Bạn có cần ta xem cho một quẻ miễn phí không?"
+          <p className="text-[10px] text-slate-200 leading-snug mb-2 italic">
+            "Có điều trăn trở trong lòng chưa tỏ sao?"
           </p>
 
-          {/* 2 Ô LỰA CHỌN CÓ / KHÔNG NGAY CẠNH NHÂN VẬT */}
+          {/* 2 NÚT ĐỐI THOẠI VỚI CAO NHÂN */}
           <div className="space-y-1.5">
-            {/* Ô 1: CÓ */}
             <button
               onClick={onSelectYes}
-              className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/30 active:scale-95 transition border border-emerald-300"
+              className="w-full py-1.5 px-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-extrabold text-[10.5px] leading-tight flex items-center justify-center gap-1 shadow-sm shadow-emerald-500/30 active:scale-95 transition"
             >
-              <CheckCircle2 className="w-3.5 h-3.5 text-slate-950" />
-              <span>CÓ (Xem Giúp Tôi)</span>
+              <CheckCircle2 className="w-3 h-3 text-slate-950 flex-shrink-0" />
+              <span>Nhờ tiên sinh chỉ điểm</span>
             </button>
 
-            {/* Ô 2: KHÔNG */}
             <button
               onClick={onSelectNo}
-              className="w-full py-2 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-rose-300 font-bold text-xs flex items-center justify-center gap-1.5 border border-rose-500/40 active:scale-95 transition"
+              className="w-full py-1.5 px-2 rounded-lg bg-slate-900/90 hover:bg-slate-800 text-rose-300 font-bold text-[10px] leading-tight flex items-center justify-center gap-1 border border-rose-500/30 active:scale-95 transition"
             >
-              <XCircle className="w-3.5 h-3.5 text-rose-400" />
-              <span>KHÔNG (Để Khi Khác)</span>
+              <XCircle className="w-3 h-3 text-rose-400 flex-shrink-0" />
+              <span>Tiện đường dạo chơi thôi</span>
             </button>
           </div>
         </div>
       )}
 
-      {/* 4. BẢNG CHỌN 4 PHONG CÁCH THẦY BÓI CHUẨN XÁC DƯỚI CHÂN */}
-      <div className="absolute bottom-2 inset-x-2 bg-slate-950/90 backdrop-blur-md px-3 py-2 rounded-2xl border border-amber-400/40 shadow-xl flex items-center justify-between gap-2 z-20">
-        <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
-          <span className="text-[11px] font-bold text-amber-300 hidden sm:inline mr-1 flex items-center gap-1">
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            <span>Tạo hình:</span>
-          </span>
-
-          <button
-            onClick={(e) => { e.stopPropagation(); setCurrentStyle('hooded_green'); }}
-            className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition whitespace-nowrap flex items-center gap-1 ${
-              currentStyle === 'hooded_green'
-                ? 'bg-emerald-600 text-white border-amber-300 shadow-md'
-                : 'bg-slate-900 text-slate-300 border-slate-700 hover:text-white'
-            }`}
-          >
-            <span>🟢 Áo Choàng Xanh (Hình 2)</span>
-          </button>
-
-          <button
-            onClick={(e) => { e.stopPropagation(); setCurrentStyle('turban_tarot'); }}
-            className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition whitespace-nowrap flex items-center gap-1 ${
-              currentStyle === 'turban_tarot'
-                ? 'bg-purple-600 text-white border-amber-300 shadow-md'
-                : 'bg-slate-900 text-slate-300 border-slate-700 hover:text-white'
-            }`}
-          >
-            <span>🟣 Turban & Tarot (Hình 1)</span>
-          </button>
-
-          <button
-            onClick={(e) => { e.stopPropagation(); setCurrentStyle('crystal_maiden'); }}
-            className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition whitespace-nowrap flex items-center gap-1 ${
-              currentStyle === 'crystal_maiden'
-                ? 'bg-cyan-600 text-white border-amber-300 shadow-md'
-                : 'bg-slate-900 text-slate-300 border-slate-700 hover:text-white'
-            }`}
-          >
-            <span>🔮 Cầu Pha Lê (Hình 3)</span>
-          </button>
-
-          <button
-            onClick={(e) => { e.stopPropagation(); setCurrentStyle('crimson_sorceress'); }}
-            className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition whitespace-nowrap flex items-center gap-1 ${
-              currentStyle === 'crimson_sorceress'
-                ? 'bg-red-700 text-white border-amber-300 shadow-md'
-                : 'bg-slate-900 text-slate-300 border-slate-700 hover:text-white'
-            }`}
-          >
-            <span>🔴 Hồng Y (Hình 4)</span>
-          </button>
-        </div>
-
-        <div className="flex items-center gap-1 text-[11px] text-amber-400 font-bold flex-shrink-0">
-          <Zap className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-          <span className="hidden md:inline">Khẩu hình khớp giọng nói</span>
-        </div>
-      </div>
     </div>
   );
 };
