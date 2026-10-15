@@ -242,17 +242,30 @@ export const TuViHoroscope: React.FC<TuViProps> = ({ onSaveResult, onNavigateTab
         // Tự động lập bảng lá số 12 cung & luận giải bản mệnh cả đời ngay lập tức
         try {
           const bundle = buildTuViProfileAndLifeDossier(matched);
-          setPalaces(bundle.palaces);
-          setProfileSummary(bundle.profileSummary);
+          const prof = bundle.profile || bundle.profileSummary;
+          setPalaces(bundle.palaces || []);
+          setProfileSummary(prof);
           setHasAutoFilled(true);
-          setReadingResult((prev) => prev || bundle.generalVerdict);
+
+          const verdict = bundle.generalVerdict || '';
+          setReadingResult((prev) => prev || verdict);
+
+          const tienVanText = bundle.lifeDossier?.tienVan?.detail || '';
+          const congDanhText = bundle.lifeDossier?.fivePillars?.[1]?.deepAnalysis || 'Công danh hanh thông, tài lộc vượng phát.';
+          const tinhDuyenText = bundle.lifeDossier?.fivePillars?.[3]?.deepAnalysis || 'Tình duyên bền chặt, bạn đời đồng tâm hiệp lực.';
+          const vanHanText = bundle.lifeDossier?.trungVan?.detail || '';
+          const personName = prof?.fullName || matched.fullName || 'Đương số';
+          const canChi = prof?.canChiYear || '';
+          const napAm = prof?.menhNguHanh || '';
+          const score = bundle.lifeDossier?.destinyScores?.[0]?.score || 88;
+
           setParsedSections((prev) => prev || {
-            thayPhan: bundle.generalVerdict,
-            banMenh: bundle.lifeDossier.tienVan.detail,
-            congDanh: bundle.lifeDossier.fivePillars[1]?.deepAnalysis || 'Công danh hanh thông, tài lộc vượng phát.',
-            tinhDuyen: bundle.lifeDossier.fivePillars[3]?.deepAnalysis || 'Tình duyên bền chặt, bạn đời đồng tâm hiệp lực.',
-            vanHan: bundle.lifeDossier.trungVan.detail,
-            nhanXet: `Đương số ${bundle.profileSummary.fullName} (${bundle.profileSummary.canChiYear} - ${bundle.profileSummary.menhNguHanh}): Vận số cát tường ${bundle.lifeDossier.destinyScores[0]?.score || 88}/100. Đức năng thắng số, tâm tịnh vạn sự thông.`
+            thayPhan: verdict,
+            banMenh: tienVanText,
+            congDanh: congDanhText,
+            tinhDuyen: tinhDuyenText,
+            vanHan: vanHanText,
+            nhanXet: `Đương số ${personName} (${canChi} - ${napAm}): Vận số cát tường ${score}/100. Đức năng thắng số, tâm tịnh vạn sự thông.`
           });
         } catch (err) {
           console.warn("Auto build tuvi profile error:", err);

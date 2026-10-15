@@ -11,6 +11,7 @@ import { FaceAndPalmReading } from './components/FaceAndPalmReading';
 import { WesternDivination } from './components/WesternDivination';
 import { HistoryModal } from './components/HistoryModal';
 import { RecentDossiersBanner } from './components/RecentDossiersBanner';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { syncDossierRecordCounts } from './services/dossierService';
 import { Compass, Sparkles, Moon, Eye, ShieldCheck, Heart, Binary, Navigation } from 'lucide-react';
 
@@ -212,16 +213,18 @@ export default function App() {
 
         {/* Tab 2: Tử Vi Lý Số */}
         {currentTab === 'tuvi' && (
-          <TuViHoroscope
-            onSaveResult={handleSaveRecord}
-            onNavigateTab={(tab, subMode) => {
-              if (tab === 'facepalm' && subMode) {
-                setFacePalmInitialMode(subMode);
-              }
-              setCurrentTab(tab);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-          />
+          <ErrorBoundary fallbackTitle="Lỗi hiển thị Tử Vi Lý Số">
+            <TuViHoroscope
+              onSaveResult={handleSaveRecord}
+              onNavigateTab={(tab, subMode) => {
+                if (tab === 'facepalm' && subMode) {
+                  setFacePalmInitialMode(subMode);
+                }
+                setCurrentTab(tab);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
+          </ErrorBoundary>
         )}
 
         {/* Tab 3: La Bàn Bát Trạch Số Hóa */}

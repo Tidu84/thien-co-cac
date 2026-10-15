@@ -48,6 +48,7 @@ export interface LifeDestinyDossierData {
 
 export interface CompleteTuViBundle {
   profile: TuViProfile;
+  profileSummary: TuViProfile;
   palaces: TuViPalace[];
   lunarData: LunarDateResult;
   lifeDossier: LifeDestinyDossierData;
@@ -244,6 +245,7 @@ export const buildTuViProfileAndLifeDossier = (dossier: UserDossier): CompleteTu
 
   return {
     profile,
+    profileSummary: profile,
     palaces,
     lunarData,
     lifeDossier,
