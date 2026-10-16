@@ -72,6 +72,21 @@ export interface UserDossier {
   createdDate: string;
   lastUpdated: string;
   recordsCount?: number;
+
+  // Hình ảnh tướng pháp & chỉ tay
+  faceImage?: string;          // Ảnh chụp khuôn mặt (base64 hoặc URL)
+  faceCapturedAt?: string;     // Thời điểm chụp khuôn mặt
+  faceVerdict?: string;        // Tóm tắt luận giải tướng mặt
+
+  palmImage?: string;          // Ảnh chụp lòng bàn tay (base64 hoặc URL)
+  palmCapturedAt?: string;     // Thời điểm chụp chỉ tay
+  palmSide?: 'left' | 'right'; // Tay trái hay tay phải
+  palmCategory?: string;       // Dạng mẫu chỉ tay đã phân loại
+  palmVerdict?: string;        // Tóm tắt luận giải chỉ tay
+
+  bodyImage?: string;          // Ảnh chụp toàn thân (base64 hoặc URL)
+  bodyCapturedAt?: string;     // Thời điểm chụp toàn thân
+  bodyVerdict?: string;        // Tóm tắt cốt cách toàn thân
 }
 
 export interface TarotCard {

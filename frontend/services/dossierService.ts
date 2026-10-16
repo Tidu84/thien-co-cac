@@ -96,6 +96,17 @@ export function upsertUserDossier(info: {
   canChiYear?: string;
   menhNguHanh?: string;
   notes?: string;
+  faceImage?: string;
+  faceCapturedAt?: string;
+  faceVerdict?: string;
+  palmImage?: string;
+  palmCapturedAt?: string;
+  palmSide?: 'left' | 'right';
+  palmCategory?: string;
+  palmVerdict?: string;
+  bodyImage?: string;
+  bodyCapturedAt?: string;
+  bodyVerdict?: string;
 }): UserDossier {
   const trimmedName = info.fullName.trim();
   if (!trimmedName || trimmedName === 'Hữu Duyên Khách') {
@@ -117,7 +128,7 @@ export function upsertUserDossier(info: {
   let targetDossier: UserDossier;
 
   if (existingIndex >= 0) {
-    // Đã có -> Cập nhật thông tin mới nhất
+    // Đã có -> Cập nhật thông tin mới nhất và giữ lại các ảnh đã chụp nếu không nạp ảnh mới
     targetDossier = {
       ...dossiers[existingIndex],
       fullName: trimmedName,
@@ -128,6 +139,24 @@ export function upsertUserDossier(info: {
       canChiYear: info.canChiYear || dossiers[existingIndex].canChiYear,
       menhNguHanh: info.menhNguHanh || dossiers[existingIndex].menhNguHanh,
       notes: info.notes !== undefined ? info.notes : dossiers[existingIndex].notes,
+      
+      // Ảnh khuôn mặt
+      faceImage: info.faceImage || dossiers[existingIndex].faceImage,
+      faceCapturedAt: info.faceCapturedAt || (info.faceImage ? nowStr : dossiers[existingIndex].faceCapturedAt),
+      faceVerdict: info.faceVerdict !== undefined ? info.faceVerdict : dossiers[existingIndex].faceVerdict,
+
+      // Ảnh chỉ tay
+      palmImage: info.palmImage || dossiers[existingIndex].palmImage,
+      palmCapturedAt: info.palmCapturedAt || (info.palmImage ? nowStr : dossiers[existingIndex].palmCapturedAt),
+      palmSide: info.palmSide || dossiers[existingIndex].palmSide,
+      palmCategory: info.palmCategory || dossiers[existingIndex].palmCategory,
+      palmVerdict: info.palmVerdict !== undefined ? info.palmVerdict : dossiers[existingIndex].palmVerdict,
+
+      // Ảnh toàn thân
+      bodyImage: info.bodyImage || dossiers[existingIndex].bodyImage,
+      bodyCapturedAt: info.bodyCapturedAt || (info.bodyImage ? nowStr : dossiers[existingIndex].bodyCapturedAt),
+      bodyVerdict: info.bodyVerdict !== undefined ? info.bodyVerdict : dossiers[existingIndex].bodyVerdict,
+
       lastUpdated: nowStr
     };
     dossiers[existingIndex] = targetDossier;
@@ -143,6 +172,17 @@ export function upsertUserDossier(info: {
       canChiYear: info.canChiYear,
       menhNguHanh: info.menhNguHanh,
       notes: info.notes,
+      faceImage: info.faceImage,
+      faceCapturedAt: info.faceImage ? nowStr : undefined,
+      faceVerdict: info.faceVerdict,
+      palmImage: info.palmImage,
+      palmCapturedAt: info.palmImage ? nowStr : undefined,
+      palmSide: info.palmSide,
+      palmCategory: info.palmCategory,
+      palmVerdict: info.palmVerdict,
+      bodyImage: info.bodyImage,
+      bodyCapturedAt: info.bodyImage ? nowStr : undefined,
+      bodyVerdict: info.bodyVerdict,
       createdDate: new Date().toLocaleDateString('vi-VN'),
       lastUpdated: nowStr,
       recordsCount: 0
@@ -176,7 +216,7 @@ export function deleteUserDossier(id: string): void {
 }
 
 /**
- * Tự động tính toán lại số lượng quẻ của từng người dựa vào sổ tay records
+ * Tự động tính toán lại số lượng quẻ và đồng bộ ảnh chụp đã có vào hồ sơ
  */
 export function syncDossierRecordCounts(records: DivinationRecord[]): void {
   const dossiers = getUserDossiers();
@@ -184,14 +224,49 @@ export function syncDossierRecordCounts(records: DivinationRecord[]): void {
 
   let hasChanged = false;
   const updated = dossiers.map(d => {
-    const count = records.filter(
+    const userRecords = records.filter(
       r => (r.personName || '').trim().toLowerCase() === d.fullName.trim().toLowerCase()
-    ).length;
+    );
+    const count = userRecords.length;
+    let modifiedDossier = { ...d };
+
     if (d.recordsCount !== count) {
       hasChanged = true;
-      return { ...d, recordsCount: count };
+      modifiedDossier.recordsCount = count;
     }
-    return d;
+
+    // Tự động khôi phục ảnh mặt, ảnh chỉ tay, ảnh toàn thân nếu hồ sơ chưa có nhưng trong sổ quẻ đã có
+    if (!modifiedDossier.faceImage) {
+      const faceRec = userRecords.find(r => r.type === 'face' && r.capturedImage);
+      if (faceRec && faceRec.capturedImage) {
+        modifiedDossier.faceImage = faceRec.capturedImage;
+        modifiedDossier.faceCapturedAt = faceRec.date;
+        modifiedDossier.faceVerdict = faceRec.summary;
+        hasChanged = true;
+      }
+    }
+
+    if (!modifiedDossier.palmImage) {
+      const palmRec = userRecords.find(r => r.type === 'palm' && r.capturedImage);
+      if (palmRec && palmRec.capturedImage) {
+        modifiedDossier.palmImage = palmRec.capturedImage;
+        modifiedDossier.palmCapturedAt = palmRec.date;
+        modifiedDossier.palmVerdict = palmRec.summary;
+        hasChanged = true;
+      }
+    }
+
+    if (!modifiedDossier.bodyImage) {
+      const bodyRec = userRecords.find(r => r.type === 'body' && r.capturedImage);
+      if (bodyRec && bodyRec.capturedImage) {
+        modifiedDossier.bodyImage = bodyRec.capturedImage;
+        modifiedDossier.bodyCapturedAt = bodyRec.date;
+        modifiedDossier.bodyVerdict = bodyRec.summary;
+        hasChanged = true;
+      }
+    }
+
+    return modifiedDossier;
   });
 
   if (hasChanged) {

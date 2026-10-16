@@ -32,12 +32,16 @@ import {
   Award,
   ScrollText,
   Compass,
-  Layers
+  Layers,
+  Camera,
+  Hand,
+  Eye,
+  Activity
 } from 'lucide-react';
 import { buildTuViProfileAndLifeDossier, CompleteTuViBundle } from '../services/tuViService';
 
 interface RecentDossiersBannerProps {
-  onNavigateTab: (tab: NavTab) => void;
+  onNavigateTab: (tab: NavTab, subMode?: 'face' | 'palm' | 'body') => void;
 }
 
 export const RecentDossiersBanner: React.FC<RecentDossiersBannerProps> = ({ onNavigateTab }) => {
@@ -47,7 +51,9 @@ export const RecentDossiersBanner: React.FC<RecentDossiersBannerProps> = ({ onNa
 
   // Modal xem Bảng Tử Vi & Luận Bàn Bản Mệnh Cả Đời của hồ sơ được chọn
   const [viewingTuViBundle, setViewingTuViBundle] = useState<CompleteTuViBundle | null>(null);
-  const [modalTab, setModalTab] = useState<'tamKy' | 'fivePillars' | 'palaces' | 'scores'>('tamKy');
+  const [viewingDossier, setViewingDossier] = useState<UserDossier | null>(null);
+  const [modalTab, setModalTab] = useState<'photos' | 'tamKy' | 'fivePillars' | 'palaces' | 'scores'>('photos');
+  const [previewZoomImage, setPreviewZoomImage] = useState<{ url: string; title: string } | null>(null);
   const [isVoiceSpeaking, setIsVoiceSpeaking] = useState(false);
 
   // Form thêm hồ sơ mới
@@ -76,12 +82,13 @@ export const RecentDossiersBanner: React.FC<RecentDossiersBannerProps> = ({ onNa
     };
   }, []);
 
-  const handleSelectDossier = (dossier: UserDossier) => {
+  const handleSelectDossier = (dossier: UserDossier, initialTab?: 'photos' | 'tamKy') => {
     setActiveDossierName(dossier.fullName);
     setActiveName(dossier.fullName);
     const bundle = buildTuViProfileAndLifeDossier(dossier);
     setViewingTuViBundle(bundle);
-    setModalTab('tamKy');
+    setViewingDossier(dossier);
+    setModalTab(initialTab || (dossier.faceImage || dossier.palmImage || dossier.bodyImage ? 'photos' : 'tamKy'));
   };
 
   const handleOpenInTuViTab = (dossier: UserDossier) => {
@@ -89,6 +96,7 @@ export const RecentDossiersBanner: React.FC<RecentDossiersBannerProps> = ({ onNa
     setActiveName(dossier.fullName);
     stopVoice();
     setViewingTuViBundle(null);
+    setViewingDossier(null);
     onNavigateTab('tuvi');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -226,12 +234,30 @@ export const RecentDossiersBanner: React.FC<RecentDossiersBannerProps> = ({ onNa
                 <div>
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2.5">
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shadow ${
-                        isActive 
-                          ? 'bg-amber-400 text-slate-950' 
-                          : 'bg-purple-900/50 text-purple-200 border border-purple-500/30'
-                      }`}>
-                        {dossier.gender === 'nu' ? '🌸' : '👤'}
+                      <div className="relative">
+                        {dossier.faceImage ? (
+                          <img 
+                            src={dossier.faceImage} 
+                            alt={dossier.fullName} 
+                            className="w-11 h-11 rounded-2xl object-cover border-2 border-amber-400 shadow-md ring-2 ring-amber-400/20"
+                          />
+                        ) : (
+                          <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-base shadow ${
+                            isActive 
+                              ? 'bg-amber-400 text-slate-950' 
+                              : 'bg-purple-900/50 text-purple-200 border border-purple-500/30'
+                          }`}>
+                            {dossier.gender === 'nu' ? '🌸' : '👤'}
+                          </div>
+                        )}
+                        {dossier.palmImage && (
+                          <div 
+                            className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-slate-950 border border-purple-400 flex items-center justify-center text-[10px] shadow" 
+                            title={`Đã có ảnh chỉ tay (${dossier.palmSide === 'left' ? 'Tay Trái' : 'Tay Phải'})`}
+                          >
+                            ✋
+                          </div>
+                        )}
                       </div>
                       <div>
                         <div className="flex items-center gap-1.5">
@@ -260,9 +286,36 @@ export const RecentDossiersBanner: React.FC<RecentDossiersBannerProps> = ({ onNa
                     </button>
                   </div>
 
+                  {/* Trạng thái ảnh chụp tướng mạo & chỉ tay */}
+                  <div className="flex items-center gap-1.5 flex-wrap pt-2">
+                    {dossier.faceImage ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">
+                        <Camera className="w-2.5 h-2.5 text-emerald-400" />
+                        <span>Mặt: Đã chụp</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-900 text-slate-400 border border-slate-800">
+                        <Camera className="w-2.5 h-2.5 text-slate-500" />
+                        <span>Chưa chụp mặt</span>
+                      </span>
+                    )}
+
+                    {dossier.palmImage ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-400/40">
+                        <Hand className="w-2.5 h-2.5 text-purple-400" />
+                        <span>Chỉ tay: {dossier.palmSide === 'left' ? 'Tay Trái' : 'Tay Phải'}</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-900 text-slate-400 border border-slate-800">
+                        <Hand className="w-2.5 h-2.5 text-slate-500" />
+                        <span>Chưa chụp chỉ tay</span>
+                      </span>
+                    )}
+                  </div>
+
                   {/* Thông tin bổ sung */}
                   {(dossier.canChiYear || dossier.birthHour || dossier.notes) && (
-                    <div className="mt-2.5 pt-2 border-t border-slate-800/80 text-[11px] text-slate-400 space-y-0.5">
+                    <div className="mt-2 pt-2 border-t border-slate-800/80 text-[11px] text-slate-400 space-y-0.5">
                       {dossier.canChiYear && (
                         <div>Can Chi: <strong className="text-amber-300/90">{dossier.canChiYear}</strong></div>
                       )}
@@ -284,23 +337,36 @@ export const RecentDossiersBanner: React.FC<RecentDossiersBannerProps> = ({ onNa
                   </span>
 
                   <span className={`font-semibold flex items-center gap-1 ${isActive ? 'text-amber-300' : 'text-slate-400 group-hover:text-amber-200'}`}>
-                    <span>Bấm xem Bảng Tử Vi</span>
+                    <span>Bấm xem hồ sơ</span>
                     <ArrowRight className="w-3 h-3" />
                   </span>
                 </div>
 
                 {/* Quick Action Button */}
-                <div className="pt-1 flex gap-2">
+                <div className="pt-1 flex items-center gap-1.5">
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleSelectDossier(dossier);
+                      handleSelectDossier(dossier, 'photos');
                     }}
-                    className="flex-1 py-1.5 px-2.5 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 text-amber-300 border border-amber-400/40 text-[11px] font-bold flex items-center justify-center gap-1.5 transition active:scale-95 shadow"
+                    className="py-1.5 px-2.5 rounded-xl bg-purple-950/70 hover:bg-purple-900 text-purple-200 border border-purple-500/40 text-[11px] font-bold flex items-center justify-center gap-1 transition active:scale-95 shadow"
+                    title="Xem ảnh chụp khuôn mặt và lòng bàn tay"
+                  >
+                    <Camera className="w-3 h-3 text-purple-300" />
+                    <span>Ảnh & Tướng</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSelectDossier(dossier, 'tamKy');
+                    }}
+                    className="flex-1 py-1.5 px-2.5 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 text-amber-300 border border-amber-400/40 text-[11px] font-bold flex items-center justify-center gap-1 transition active:scale-95 shadow"
                   >
                     <ScrollText className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Bảng Tử Vi & Vận Mệnh</span>
+                    <span>Bảng Tử Vi</span>
                   </button>
 
                   <button
@@ -309,11 +375,10 @@ export const RecentDossiersBanner: React.FC<RecentDossiersBannerProps> = ({ onNa
                       e.stopPropagation();
                       handleOpenInTuViTab(dossier);
                     }}
-                    className="py-1.5 px-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-purple-200 border border-purple-500/30 text-[11px] font-semibold flex items-center justify-center gap-1 transition active:scale-95"
+                    className="py-1.5 px-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-purple-200 border border-purple-500/30 text-[11px] font-semibold flex items-center justify-center gap-1 transition active:scale-95"
                     title="Mở toàn diện tại Tab Tử Vi Lý Số"
                   >
                     <Sparkles className="w-3 h-3 text-purple-300" />
-                    <span className="hidden sm:inline">Tab Tử Vi</span>
                     <ArrowRight className="w-3 h-3" />
                   </button>
                 </div>
@@ -339,13 +404,34 @@ export const RecentDossiersBanner: React.FC<RecentDossiersBannerProps> = ({ onNa
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
               <div className="flex items-start gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400/20 to-purple-600/30 border border-amber-400/50 flex items-center justify-center text-2xl shadow-md shrink-0">
-                  {viewingTuViBundle.profile.gender === 'nu' ? '🌸' : '👤'}
+                <div className="relative">
+                  {viewingDossier?.faceImage ? (
+                    <img 
+                      src={viewingDossier.faceImage} 
+                      alt="Avatar" 
+                      className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-400 shadow-md ring-2 ring-amber-400/30 shrink-0 cursor-pointer" 
+                      onClick={() => setPreviewZoomImage({ url: viewingDossier.faceImage!, title: `Ảnh Khuôn Mặt: ${viewingDossier.fullName}` })}
+                      title="Bấm để phóng to ảnh khuôn mặt"
+                    />
+                  ) : (
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400/20 to-purple-600/30 border border-amber-400/50 flex items-center justify-center text-2xl shadow-md shrink-0">
+                      {viewingTuViBundle.profile.gender === 'nu' ? '🌸' : '👤'}
+                    </div>
+                  )}
+                  {viewingDossier?.palmImage && (
+                    <div 
+                      className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-slate-950 border border-purple-400 flex items-center justify-center text-xs shadow cursor-pointer" 
+                      onClick={() => setPreviewZoomImage({ url: viewingDossier.palmImage!, title: `Ảnh Chỉ Tay: ${viewingDossier.fullName}` })}
+                      title="Đã có ảnh chỉ tay (Bấm để xem)"
+                    >
+                      ✋
+                    </div>
+                  )}
                 </div>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40 uppercase tracking-wider">
-                      Lá Số Tử Vi & Bản Mệnh Trọn Đời
+                      Hồ Sơ Đương Số & Tử Vi Trọn Đời
                     </span>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-400/30">
                       {viewingTuViBundle.profile.gender === 'nu' ? 'Nữ mạng' : 'Nam mạng'}
@@ -353,6 +439,12 @@ export const RecentDossiersBanner: React.FC<RecentDossiersBannerProps> = ({ onNa
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
                       Cục: {viewingTuViBundle.profile.cuc}
                     </span>
+                    {(viewingDossier?.faceImage || viewingDossier?.palmImage) && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 border border-pink-400/30 flex items-center gap-1">
+                        <Camera className="w-2.5 h-2.5" />
+                        <span>Đã lưu ảnh tướng mạo</span>
+                      </span>
+                    )}
                   </div>
                   <h3 className="font-mystic text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-300 to-yellow-400 mt-1">
                     {viewingTuViBundle.profile.fullName}
@@ -389,6 +481,7 @@ export const RecentDossiersBanner: React.FC<RecentDossiersBannerProps> = ({ onNa
                   onClick={() => {
                     stopVoice();
                     setViewingTuViBundle(null);
+                    setViewingDossier(null);
                   }}
                   className="text-xs text-slate-400 hover:text-white p-2 rounded-xl bg-slate-800 border border-slate-700 hover:bg-slate-700 transition"
                   title="Đóng bảng"
@@ -406,6 +499,21 @@ export const RecentDossiersBanner: React.FC<RecentDossiersBannerProps> = ({ onNa
             {/* Thanh Tab điều hướng nội dung */}
             <div className="flex flex-wrap items-center gap-2 border-b border-slate-800 pb-2">
               <button
+                onClick={() => setModalTab('photos')}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${
+                  modalTab === 'photos'
+                    ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-md font-extrabold'
+                    : 'bg-slate-950 text-slate-400 hover:text-purple-200 border border-slate-800'
+                }`}
+              >
+                <Camera className="w-3.5 h-3.5" />
+                <span>1. Tướng Mạo & Chỉ Tay (Ảnh Chụp)</span>
+                {(viewingDossier?.faceImage || viewingDossier?.palmImage) && (
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse ml-0.5" />
+                )}
+              </button>
+
+              <button
                 onClick={() => setModalTab('tamKy')}
                 className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${
                   modalTab === 'tamKy'
@@ -414,7 +522,7 @@ export const RecentDossiersBanner: React.FC<RecentDossiersBannerProps> = ({ onNa
                 }`}
               >
                 <ScrollText className="w-3.5 h-3.5" />
-                <span>1. Tam Kỳ Vận Mệnh (Tiền - Trung - Hậu Vận)</span>
+                <span>2. Tam Kỳ Vận Mệnh (Tiền - Trung - Hậu Vận)</span>
               </button>
 
               <button
@@ -426,7 +534,7 @@ export const RecentDossiersBanner: React.FC<RecentDossiersBannerProps> = ({ onNa
                 }`}
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>2. Ngũ Trụ Cuộc Đời (5 Trụ Cột)</span>
+                <span>3. Ngũ Trụ Cuộc Đời (5 Trụ Cột)</span>
               </button>
 
               <button
@@ -438,7 +546,7 @@ export const RecentDossiersBanner: React.FC<RecentDossiersBannerProps> = ({ onNa
                 }`}
               >
                 <Layers className="w-3.5 h-3.5" />
-                <span>3. Lá Số 12 Cung Tử Vi</span>
+                <span>4. Lá Số 12 Cung Tử Vi</span>
               </button>
 
               <button
@@ -450,11 +558,258 @@ export const RecentDossiersBanner: React.FC<RecentDossiersBannerProps> = ({ onNa
                 }`}
               >
                 <Award className="w-3.5 h-3.5" />
-                <span>4. Thước Đo Cát Hung & Cải Vận</span>
+                <span>5. Thước Đo Cát Hung & Cải Vận</span>
               </button>
             </div>
 
-            {/* TAB 1: Tam Kỳ Vận Mệnh */}
+            {/* TAB 1: ẢNH CHỤP TƯỚNG MẠO & CHỈ TAY */}
+            {modalTab === 'photos' && viewingDossier && (
+              <div className="space-y-4 animate-fadeIn">
+                <div className="bg-gradient-to-r from-purple-950/60 via-slate-900 to-amber-950/50 p-4 rounded-2xl border border-amber-400/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow">
+                  <div>
+                    <h4 className="font-mystic font-bold text-amber-300 text-sm sm:text-base flex items-center gap-2">
+                      <Camera className="w-4 h-4 text-amber-400" />
+                      <span>Hồ Sơ Ảnh Chụp Thực Tế Của Đương Số</span>
+                    </h4>
+                    <p className="text-xs text-slate-300 mt-0.5">
+                      Ảnh chụp trực tiếp từ camera/thiết bị của <strong className="text-amber-200">{viewingDossier.fullName}</strong>, được lưu trữ vĩnh viễn trong hồ sơ để đối chiếu diện mạo, chỉ tay với lá số Tử Vi.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        stopVoice();
+                        setViewingTuViBundle(null);
+                        setViewingDossier(null);
+                        onNavigateTab('facepalm', 'face');
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400/50 text-xs font-bold transition flex items-center gap-1.5 active:scale-95 shadow"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                      <span>Chụp ảnh mới</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {/* 1. KHUÔN MẶT */}
+                  <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 hover:border-amber-400/50 transition flex flex-col justify-between space-y-3 shadow-lg">
+                    <div>
+                      <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
+                        <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                          <Eye className="w-3.5 h-3.5 text-amber-400" />
+                          <span>1. Nhân Diện (Khuôn Mặt)</span>
+                        </span>
+                        {viewingDossier.faceImage ? (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">
+                            ✓ Đã chụp
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-900 text-slate-500 border border-slate-800">
+                            Chưa chụp
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="mt-3 flex flex-col items-center justify-center">
+                        {viewingDossier.faceImage ? (
+                          <div 
+                            onClick={() => setPreviewZoomImage({ url: viewingDossier.faceImage!, title: `Ảnh Khuôn Mặt: ${viewingDossier.fullName}` })}
+                            className="relative w-36 h-36 rounded-2xl overflow-hidden border-2 border-amber-400/60 shadow-xl group cursor-pointer bg-slate-900"
+                            title="Bấm để phóng to xem chi tiết"
+                          >
+                            <img src={viewingDossier.faceImage} alt="Khuôn mặt" className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+                            <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-amber-300 text-xs font-bold gap-1">
+                              <Search className="w-4 h-4" />
+                              <span>Phóng to</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="w-36 h-36 rounded-2xl border-2 border-dashed border-slate-700/80 bg-slate-900/60 flex flex-col items-center justify-center p-3 text-center text-slate-500">
+                            <Eye className="w-8 h-8 text-slate-600 mb-1" />
+                            <span className="text-xs text-slate-400 font-semibold">Chưa có ảnh mặt</span>
+                            <span className="text-[10px] text-slate-500 mt-1">Soi Tam Đình Ngũ Quan</span>
+                          </div>
+                        )}
+
+                        {viewingDossier.faceCapturedAt && (
+                          <span className="text-[10px] text-slate-400 mt-2 flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-slate-500" />
+                            <span>Chụp lúc: {viewingDossier.faceCapturedAt}</span>
+                          </span>
+                        )}
+
+                        {viewingDossier.faceVerdict && (
+                          <div className="mt-2.5 p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px] text-slate-300 leading-relaxed text-left w-full line-clamp-3">
+                            <strong className="text-amber-300">Luận giải:</strong> {viewingDossier.faceVerdict}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        stopVoice();
+                        setViewingTuViBundle(null);
+                        setViewingDossier(null);
+                        onNavigateTab('facepalm', 'face');
+                      }}
+                      className="w-full py-2 px-3 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 text-amber-300 border border-amber-400/40 text-xs font-bold flex items-center justify-center gap-1.5 transition active:scale-95"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                      <span>{viewingDossier.faceImage ? 'Chụp lại ảnh khuôn mặt' : 'Bấm mở camera chụp mặt'}</span>
+                    </button>
+                  </div>
+
+                  {/* 2. LÒNG BÀN TAY (CHỈ TAY) */}
+                  <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 hover:border-purple-400/50 transition flex flex-col justify-between space-y-3 shadow-lg">
+                    <div>
+                      <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
+                        <span className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
+                          <Hand className="w-3.5 h-3.5 text-purple-400" />
+                          <span>2. Thủ Tướng (Lòng Bàn Tay)</span>
+                        </span>
+                        {viewingDossier.palmImage ? (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-400/40">
+                            ✓ {viewingDossier.palmSide === 'left' ? 'Tay Trái' : 'Tay Phải'}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-900 text-slate-500 border border-slate-800">
+                            Chưa chụp
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="mt-3 flex flex-col items-center justify-center">
+                        {viewingDossier.palmImage ? (
+                          <div 
+                            onClick={() => setPreviewZoomImage({ url: viewingDossier.palmImage!, title: `Ảnh Chỉ Tay: ${viewingDossier.fullName} (${viewingDossier.palmSide === 'left' ? 'Tay Trái' : 'Tay Phải'})` })}
+                            className="relative w-36 h-36 rounded-2xl overflow-hidden border-2 border-purple-400/60 shadow-xl group cursor-pointer bg-slate-900"
+                            title="Bấm để phóng to xem chi tiết"
+                          >
+                            <img src={viewingDossier.palmImage} alt="Chỉ tay" className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+                            <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-purple-300 text-xs font-bold gap-1">
+                              <Search className="w-4 h-4" />
+                              <span>Phóng to</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="w-36 h-36 rounded-2xl border-2 border-dashed border-slate-700/80 bg-slate-900/60 flex flex-col items-center justify-center p-3 text-center text-slate-500">
+                            <Hand className="w-8 h-8 text-slate-600 mb-1" />
+                            <span className="text-xs text-slate-400 font-semibold">Chưa có ảnh chỉ tay</span>
+                            <span className="text-[10px] text-slate-500 mt-1">Sinh Đạo, Trí Đạo, Tâm Đạo</span>
+                          </div>
+                        )}
+
+                        {viewingDossier.palmCapturedAt && (
+                          <span className="text-[10px] text-slate-400 mt-2 flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-slate-500" />
+                            <span>Chụp lúc: {viewingDossier.palmCapturedAt}</span>
+                          </span>
+                        )}
+
+                        {viewingDossier.palmCategory && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30 mt-1">
+                            Phân loại: {viewingDossier.palmCategory}
+                          </span>
+                        )}
+
+                        {viewingDossier.palmVerdict && (
+                          <div className="mt-2.5 p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px] text-slate-300 leading-relaxed text-left w-full line-clamp-3">
+                            <strong className="text-purple-300">Luận giải:</strong> {viewingDossier.palmVerdict}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        stopVoice();
+                        setViewingTuViBundle(null);
+                        setViewingDossier(null);
+                        onNavigateTab('facepalm', 'palm');
+                      }}
+                      className="w-full py-2 px-3 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-400/40 text-xs font-bold flex items-center justify-center gap-1.5 transition active:scale-95"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                      <span>{viewingDossier.palmImage ? 'Chụp lại ảnh chỉ tay' : 'Bấm mở camera chụp chỉ tay'}</span>
+                    </button>
+                  </div>
+
+                  {/* 3. TOÀN THÂN (CỐT CÁCH) */}
+                  <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 hover:border-emerald-400/50 transition flex flex-col justify-between space-y-3 shadow-lg">
+                    <div>
+                      <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
+                        <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
+                          <Activity className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>3. Cốt Cách (Toàn Thân)</span>
+                        </span>
+                        {viewingDossier.bodyImage ? (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">
+                            ✓ Đã chụp
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-900 text-slate-500 border border-slate-800">
+                            Chưa chụp
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="mt-3 flex flex-col items-center justify-center">
+                        {viewingDossier.bodyImage ? (
+                          <div 
+                            onClick={() => setPreviewZoomImage({ url: viewingDossier.bodyImage!, title: `Ảnh Toàn Thân: ${viewingDossier.fullName}` })}
+                            className="relative w-36 h-36 rounded-2xl overflow-hidden border-2 border-emerald-400/60 shadow-xl group cursor-pointer bg-slate-900"
+                            title="Bấm để phóng to xem chi tiết"
+                          >
+                            <img src={viewingDossier.bodyImage} alt="Toàn thân" className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+                            <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-emerald-300 text-xs font-bold gap-1">
+                              <Search className="w-4 h-4" />
+                              <span>Phóng to</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="w-36 h-36 rounded-2xl border-2 border-dashed border-slate-700/80 bg-slate-900/60 flex flex-col items-center justify-center p-3 text-center text-slate-500">
+                            <Activity className="w-8 h-8 text-slate-600 mb-1" />
+                            <span className="text-xs text-slate-400 font-semibold">Chưa có ảnh toàn thân</span>
+                            <span className="text-[10px] text-slate-500 mt-1">Soi cốt cách hình tướng</span>
+                          </div>
+                        )}
+
+                        {viewingDossier.bodyCapturedAt && (
+                          <span className="text-[10px] text-slate-400 mt-2 flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-slate-500" />
+                            <span>Chụp lúc: {viewingDossier.bodyCapturedAt}</span>
+                          </span>
+                        )}
+
+                        {viewingDossier.bodyVerdict && (
+                          <div className="mt-2.5 p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px] text-slate-300 leading-relaxed text-left w-full line-clamp-3">
+                            <strong className="text-emerald-300">Luận giải:</strong> {viewingDossier.bodyVerdict}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        stopVoice();
+                        setViewingTuViBundle(null);
+                        setViewingDossier(null);
+                        onNavigateTab('facepalm', 'body');
+                      }}
+                      className="w-full py-2 px-3 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-400/40 text-xs font-bold flex items-center justify-center gap-1.5 transition active:scale-95"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                      <span>{viewingDossier.bodyImage ? 'Chụp lại ảnh toàn thân' : 'Bấm mở camera chụp toàn thân'}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 2: Tam Kỳ Vận Mệnh */}
             {modalTab === 'tamKy' && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 animate-fadeIn">
                 {/* Tiền Vận */}
@@ -768,6 +1123,35 @@ export const RecentDossiersBanner: React.FC<RecentDossiersBannerProps> = ({ onNa
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Lightbox Phóng To Ảnh */}
+      {previewZoomImage && (
+        <div 
+          onClick={() => setPreviewZoomImage(null)}
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-lg flex items-center justify-center p-4 animate-fadeIn"
+        >
+          <div 
+            onClick={e => e.stopPropagation()}
+            className="relative max-w-xl w-full bg-slate-900 border border-amber-400/60 rounded-3xl p-4 shadow-2xl flex flex-col items-center"
+          >
+            <div className="w-full flex items-center justify-between pb-3 border-b border-slate-800">
+              <span className="font-mystic font-bold text-amber-300 text-sm flex items-center gap-2">
+                <Camera className="w-4 h-4 text-amber-400" />
+                <span>{previewZoomImage.title}</span>
+              </span>
+              <button
+                onClick={() => setPreviewZoomImage(null)}
+                className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="mt-3 w-full max-h-[70vh] flex items-center justify-center overflow-hidden rounded-2xl bg-slate-950 p-2">
+              <img src={previewZoomImage.url} alt="Phóng to" className="max-h-[65vh] w-auto object-contain rounded-xl shadow-lg" />
+            </div>
           </div>
         </div>
       )}

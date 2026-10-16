@@ -121,7 +121,15 @@ export default function App() {
         {currentTab === 'home' && (
           <div className="space-y-6">
             {/* Hồ Sơ Những Người Đã Xem Trước Đó - Xuất hiện ngay khi vào app */}
-            <RecentDossiersBanner onNavigateTab={setCurrentTab} />
+            <RecentDossiersBanner
+              onNavigateTab={(tab, subMode) => {
+                if (tab === 'facepalm' && subMode) {
+                  setFacePalmInitialMode(subMode);
+                }
+                setCurrentTab(tab);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
 
             <IChingDivination
               initialQuestion={activeQuestion}

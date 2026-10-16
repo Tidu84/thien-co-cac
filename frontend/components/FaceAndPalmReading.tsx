@@ -167,24 +167,59 @@ export const FaceAndPalmReading: React.FC<FacePalmProps> = ({ onSaveResult, init
   const [analysisText, setAnalysisText] = useState<string | null>(null);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [isVoiceSpeaking, setIsVoiceSpeaking] = useState(false);
+  const [savedPhotoToast, setSavedPhotoToast] = useState<string | null>(null);
+  const [isSavedDossierPhoto, setIsSavedDossierPhoto] = useState<boolean>(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const cameraViewportRef = useRef<HTMLDivElement | null>(null);
 
+  // Hàm tự động nạp ảnh đã lưu của hồ sơ đang chọn
+  const loadPhotoFromDossier = (dossierName?: string, mode?: 'face' | 'palm' | 'body') => {
+    const targetName = (dossierName || userName).trim();
+    if (!targetName) return false;
+    const targetMode = mode || activeMode;
+    const allDossiers = getUserDossiers();
+    const matched = allDossiers.find(d => d.fullName.toLowerCase() === targetName.toLowerCase());
+    if (matched) {
+      if (targetMode === 'face' && matched.faceImage) {
+        setImagePreview(matched.faceImage);
+        setIsSavedDossierPhoto(true);
+        setSelectedFacePattern(null);
+        return true;
+      } else if (targetMode === 'palm' && matched.palmImage) {
+        setImagePreview(matched.palmImage);
+        setIsSavedDossierPhoto(true);
+        setSelectedPalmPattern(null);
+        if (matched.palmSide) setHandSide(matched.palmSide);
+        return true;
+      } else if (targetMode === 'body' && matched.bodyImage) {
+        setImagePreview(matched.bodyImage);
+        setIsSavedDossierPhoto(true);
+        setSelectedBodyPattern(null);
+        return true;
+      }
+    }
+    return false;
+  };
+
   useEffect(() => {
     if (initialMode) {
       setActiveMode(initialMode);
-      if (initialMode === 'palm') {
-        setSelectedPalmPattern(PALM_PATTERNS[0]);
-        setImagePreview(PALM_PATTERNS[0].svgImage);
-      } else if (initialMode === 'body') {
-        setSelectedBodyPattern(BODY_PATTERNS[0]);
-        setImagePreview(BODY_PATTERNS[0].svgImage);
-      } else {
-        setSelectedFacePattern(FACE_PATTERNS[0]);
-        setImagePreview(FACE_PATTERNS[0].imageUrl);
+      const loaded = loadPhotoFromDossier(userName, initialMode);
+      if (!loaded) {
+        setIsSavedDossierPhoto(false);
+        if (initialMode === 'palm') {
+          setSelectedPalmPattern(PALM_PATTERNS[0]);
+          setImagePreview(PALM_PATTERNS[0].svgImage);
+        } else if (initialMode === 'body') {
+          setSelectedBodyPattern(BODY_PATTERNS[0]);
+          setImagePreview(BODY_PATTERNS[0].svgImage);
+        } else {
+          setSelectedFacePattern(FACE_PATTERNS[0]);
+          setImagePreview(FACE_PATTERNS[0].imageUrl);
+        }
       }
       setAnalysisText(null);
     }
@@ -261,10 +296,42 @@ export const FaceAndPalmReading: React.FC<FacePalmProps> = ({ onSaveResult, init
       ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
       const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
       setImagePreview(dataUrl);
+      setIsSavedDossierPhoto(true);
       setSelectedPalmPattern(null);
       setSelectedFacePattern(null);
       setSelectedBodyPattern(null);
       stopCamera();
+
+      // TỰ ĐỘNG LƯU NGAY VÀO HỒ SƠ ĐƯƠNG SỐ
+      const currentPerson = userName.trim() || 'Hữu Duyên Khách';
+      const nowStr = new Date().toLocaleString('vi-VN');
+      if (activeMode === 'face') {
+        upsertUserDossier({
+          fullName: currentPerson,
+          gender: userGender,
+          faceImage: dataUrl,
+          faceCapturedAt: nowStr
+        });
+        setSavedPhotoToast(`✓ Đã lưu ảnh khuôn mặt vào hồ sơ của ${currentPerson}`);
+      } else if (activeMode === 'palm') {
+        upsertUserDossier({
+          fullName: currentPerson,
+          gender: userGender,
+          palmImage: dataUrl,
+          palmCapturedAt: nowStr,
+          palmSide: handSide
+        });
+        setSavedPhotoToast(`✓ Đã lưu ảnh lòng bàn tay (${handSide === 'left' ? 'Tay Trái' : 'Tay Phải'}) vào hồ sơ của ${currentPerson}`);
+      } else if (activeMode === 'body') {
+        upsertUserDossier({
+          fullName: currentPerson,
+          gender: userGender,
+          bodyImage: dataUrl,
+          bodyCapturedAt: nowStr
+        });
+        setSavedPhotoToast(`✓ Đã lưu ảnh toàn thân vào hồ sơ của ${currentPerson}`);
+      }
+      setTimeout(() => setSavedPhotoToast(null), 4000);
     }
   };
 
@@ -274,12 +341,45 @@ export const FaceAndPalmReading: React.FC<FacePalmProps> = ({ onSaveResult, init
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImagePreview(reader.result as string);
+        const dataUrl = reader.result as string;
+        setImagePreview(dataUrl);
+        setIsSavedDossierPhoto(true);
         setSelectedPalmPattern(null);
         setSelectedFacePattern(null);
         setSelectedBodyPattern(null);
         stopCamera();
         setAnalysisText(null);
+
+        // TỰ ĐỘNG LƯU NGAY VÀO HỒ SƠ ĐƯƠNG SỐ
+        const currentPerson = userName.trim() || 'Hữu Duyên Khách';
+        const nowStr = new Date().toLocaleString('vi-VN');
+        if (activeMode === 'face') {
+          upsertUserDossier({
+            fullName: currentPerson,
+            gender: userGender,
+            faceImage: dataUrl,
+            faceCapturedAt: nowStr
+          });
+          setSavedPhotoToast(`✓ Đã lưu ảnh khuôn mặt vào hồ sơ của ${currentPerson}`);
+        } else if (activeMode === 'palm') {
+          upsertUserDossier({
+            fullName: currentPerson,
+            gender: userGender,
+            palmImage: dataUrl,
+            palmCapturedAt: nowStr,
+            palmSide: handSide
+          });
+          setSavedPhotoToast(`✓ Đã lưu ảnh lòng bàn tay (${handSide === 'left' ? 'Tay Trái' : 'Tay Phải'}) vào hồ sơ của ${currentPerson}`);
+        } else if (activeMode === 'body') {
+          upsertUserDossier({
+            fullName: currentPerson,
+            gender: userGender,
+            bodyImage: dataUrl,
+            bodyCapturedAt: nowStr
+          });
+          setSavedPhotoToast(`✓ Đã lưu ảnh toàn thân vào hồ sơ của ${currentPerson}`);
+        }
+        setTimeout(() => setSavedPhotoToast(null), 4000);
       };
       reader.readAsDataURL(file);
     }
@@ -717,8 +817,12 @@ export const FaceAndPalmReading: React.FC<FacePalmProps> = ({ onSaveResult, init
           <button
             onClick={() => { 
               setActiveMode('face'); 
-              setSelectedFacePattern(FACE_PATTERNS[0]);
-              setImagePreview(FACE_PATTERNS[0].imageUrl);
+              const loaded = loadPhotoFromDossier(userName, 'face');
+              if (!loaded) {
+                setIsSavedDossierPhoto(false);
+                setSelectedFacePattern(FACE_PATTERNS[0]);
+                setImagePreview(FACE_PATTERNS[0].imageUrl);
+              }
               setAnalysisText(null); 
               stopCamera(); 
             }}
@@ -735,8 +839,12 @@ export const FaceAndPalmReading: React.FC<FacePalmProps> = ({ onSaveResult, init
           <button
             onClick={() => { 
               setActiveMode('palm'); 
-              setSelectedPalmPattern(PALM_PATTERNS[0]);
-              setImagePreview(PALM_PATTERNS[0].svgImage);
+              const loaded = loadPhotoFromDossier(userName, 'palm');
+              if (!loaded) {
+                setIsSavedDossierPhoto(false);
+                setSelectedPalmPattern(PALM_PATTERNS[0]);
+                setImagePreview(PALM_PATTERNS[0].svgImage);
+              }
               setAnalysisText(null); 
               stopCamera(); 
             }}
@@ -753,8 +861,12 @@ export const FaceAndPalmReading: React.FC<FacePalmProps> = ({ onSaveResult, init
           <button
             onClick={() => { 
               setActiveMode('body'); 
-              setSelectedBodyPattern(BODY_PATTERNS[0]);
-              setImagePreview(BODY_PATTERNS[0].svgImage);
+              const loaded = loadPhotoFromDossier(userName, 'body');
+              if (!loaded) {
+                setIsSavedDossierPhoto(false);
+                setSelectedBodyPattern(BODY_PATTERNS[0]);
+                setImagePreview(BODY_PATTERNS[0].svgImage);
+              }
               setAnalysisText(null); 
               stopCamera(); 
             }}
