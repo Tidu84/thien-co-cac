@@ -1,0 +1,8 @@
+{
+  "appId": "com.thiencocac.app",
+  "appName": "Xem bói - nhân duyên - tiền căn - hệ quả",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Xem bói - nhân duyên - tiền căn - hệ quả</string>
+    <string name="title_activity_main">Xem bói - nhân duyên - tiền căn - hệ quả</string>
+    <string name="package_name">com.thiencocac.app</string>
+    <string name="custom_url_scheme">com.thiencocac.app</string>
+</resources>

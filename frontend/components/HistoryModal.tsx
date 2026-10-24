@@ -202,8 +202,8 @@ export const HistoryModal: React.FC<HistoryProps> = ({
           <div className="text-center py-12 text-slate-500">
             <FileText className="w-12 h-12 mx-auto text-slate-600 mb-2 opacity-50" />
             <p className="text-sm">Chưa có quẻ nào được lưu trong sổ tay.</p>
-            <p className="text-xs mt-1 text-slate-600">
-              Hãy chụp ảnh tướng mạo, gieo quẻ Kinh Dịch hoặc an sao Tử Vi rồi bấm "Lưu lại" để ghi chép hồ sơ nhé!
+            <p className="text-xs mt-1 text-slate-400">
+              Hãy chụp ảnh tướng mạo, gieo quẻ Kinh Dịch hoặc an sao Tử Vi, hệ thống sẽ tự động ghi chép và lưu trữ hồ sơ cho bạn nhé!
             </p>
           </div>
         ) : filteredRecords.length === 0 ? (

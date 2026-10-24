@@ -13,7 +13,7 @@ import { HistoryModal } from './components/HistoryModal';
 import { RecentDossiersBanner } from './components/RecentDossiersBanner';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { syncDossierRecordCounts } from './services/dossierService';
-import { Compass, Sparkles, Moon, Eye, ShieldCheck, Heart, Binary, Navigation } from 'lucide-react';
+import { Compass, Sparkles, Moon, Eye, Heart, Binary, Navigation } from 'lucide-react';
 
 export default function App() {
   const [currentTab, setCurrentTab] = useState<NavTab>('home');
@@ -278,8 +278,8 @@ export default function App() {
       <footer className="mt-auto border-t border-slate-800/80 bg-slate-950 py-6 text-center text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="text-amber-400 font-mystic text-sm">☯ Thiên Cơ Các</span>
-            <span>• Vận Mệnh Do Tâm, Họa Phúc Do Hành</span>
+            <span className="text-amber-400 font-mystic text-sm">☯ Xem bói - Nhân duyên - Tiền căn - Hệ quả</span>
+            <span>• Tidu Production</span>
           </div>
           <div className="flex items-center gap-2 text-[11px] text-slate-400">
             <span>Dữ liệu lưu an toàn trên máy bạn • Bấm Ctrl+D để lưu trang</span>

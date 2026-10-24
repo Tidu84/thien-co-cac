@@ -14,6 +14,7 @@ import {
   getUserDossiers 
 } from '../services/dossierService';
 import { buildTuViProfileAndLifeDossier } from '../services/tuViService';
+import { MasterDestinySynthesisModal } from './MasterDestinySynthesisModal';
 import { 
   Sparkles, 
   BookmarkPlus, 
@@ -92,6 +93,7 @@ export const TuViHoroscope: React.FC<TuViProps> = ({ onSaveResult, onNavigateTab
   const [isVoiceSpeaking, setIsVoiceSpeaking] = useState(false);
   const [currentlySpeakingSection, setCurrentlySpeakingSection] = useState<string | null>(null);
   const [hasAutoFilled, setHasAutoFilled] = useState(false);
+  const [showMasterSynthesis, setShowMasterSynthesis] = useState(false);
   const [loading, setLoading] = useState(false);
   const [readingResult, setReadingResult] = useState<string | null>(null);
   const [parsedSections, setParsedSections] = useState<ParsedTuViSections | null>(null);
@@ -284,9 +286,16 @@ export const TuViHoroscope: React.FC<TuViProps> = ({ onSaveResult, onNavigateTab
       syncFromDossier(initialActive);
     }
 
+    const handleDossierUpdated = () => {
+      const active = getActiveDossierName();
+      if (active) syncFromDossier(active);
+    };
+
     window.addEventListener('thien_co_cac_active_name_changed', handleActiveChange);
+    window.addEventListener('thien_co_cac_dossier_updated', handleDossierUpdated);
     return () => {
       window.removeEventListener('thien_co_cac_active_name_changed', handleActiveChange);
+      window.removeEventListener('thien_co_cac_dossier_updated', handleDossierUpdated);
     };
   }, []);
 
@@ -417,6 +426,16 @@ export const TuViHoroscope: React.FC<TuViProps> = ({ onSaveResult, onNavigateTab
     setActiveTopic('thayPhan');
     setLoading(false);
 
+    // TỰ ĐỘNG LƯU VÀO SỔ TAY VẬN MỆNH & HỒ SƠ ĐƯƠNG SỐ (AUTO-SAVE 100%)
+    onSaveResult({
+      title: `Lá Số Tử Vi: ${summary.fullName} (${summary.canChiYear} - ${summary.menhNguHanh})`,
+      personName: summary.fullName,
+      summary: `Dương lịch: ${summary.solarDate} • Âm lịch: ${summary.lunarDate} • Cung Mệnh: ${summary.cungMenh} (${summary.cuc})`,
+      fullContent: aiAnalysis,
+      type: 'tuvi'
+    });
+    setSavedSuccess(true);
+
     // Thầy bói tự động phán lời khẩu quyết đầu tiên
     const thayPhanSpeech = `Thầy bói phán cho đương số tuổi ${currentConv.canChiYear}, bản mệnh ${currentConv.napAm}: ${parsed.thayPhan}`;
     speakVoice(thayPhanSpeech, 'thayPhan');
@@ -435,16 +454,7 @@ export const TuViHoroscope: React.FC<TuViProps> = ({ onSaveResult, onNavigateTab
     setTimeout(() => setSavedSuccess(false), 3000);
   };
 
-  const handleQuickSample1984 = () => {
-    setCalendarMode('solar');
-    setSolarDay(10);
-    setSolarMonth(10);
-    setSolarYear(1984);
-    setFullName('Đương Số Giáp Tý');
-    setGender('nam');
-  };
-
-  // Xử lý hỏi thầy bói giang hồ chuyên sâu về lá số
+    // Xử lý hỏi thầy bói giang hồ chuyên sâu về lá số
   const handleAskQuestion = async (customQ?: string) => {
     const questionToAsk = (customQ || qaInput).trim();
     if (!questionToAsk || !profileSummary) return;
@@ -721,12 +731,6 @@ export const TuViHoroscope: React.FC<TuViProps> = ({ onSaveResult, onNavigateTab
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={handleQuickSample1984}
-              className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400/50 transition active:scale-95"
-            >
-              Mẫu: 10/10/1984 (Hải Trung Kim)
-            </button>
             <button
               onClick={() => speakVoice(askQuestionScript)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-400/40 shadow active:scale-95 transition"
@@ -1050,13 +1054,10 @@ export const TuViHoroscope: React.FC<TuViProps> = ({ onSaveResult, onNavigateTab
                   </button>
                 )}
 
-                <button
-                  onClick={handleSave}
-                  className="px-4 py-1.5 rounded-xl bg-purple-900/40 hover:bg-purple-800/50 text-purple-200 border border-purple-500/40 text-xs font-semibold flex items-center gap-1.5 transition active:scale-95 shadow"
-                >
-                  <BookmarkPlus className="w-3.5 h-3.5" />
-                  <span>{savedSuccess ? 'Đã lưu!' : 'Lưu lại'}</span>
-                </button>
+                <div className="px-3.5 py-1.5 rounded-xl bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 text-xs font-semibold flex items-center gap-1.5 shadow">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Đã tự động lưu hồ sơ</span>
+                </div>
               </div>
             </div>
 

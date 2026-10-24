@@ -647,3 +647,96 @@ Hãy nhập vai xuất thần: sương mù đang cuộn xoáy trong khối pha l
     return "Làn sương trong quả cầu từ từ hé lộ: Ngôi sao bản mệnh của bạn đang chuyển động vào cung cát lợi. Mọi sự chờ đợi và kiên trì thời gian qua sắp đơm hoa kết trái.";
   }
 }
+
+
+/**
+ * Đại Tổng Luận Vận Mệnh Toàn Thư (Master Destiny Synthesis with Gemini 2.5 Flash)
+ */
+export async function generateMasterDestinySynthesisWithGemini(
+  synthesisData: {
+    personName: string;
+    gender: 'nam' | 'nu';
+    solarDateStr: string;
+    lunarDateStr: string;
+    canChiYear: string;
+    menhNguHanh: string;
+    cuc: string;
+    cungMenh: string;
+    cungThan: string;
+    cungPhi: string;
+    batTrachGroup: string;
+    lifePathNumber?: number;
+    hasFace: boolean;
+    hasPalm: boolean;
+    faceVerdict?: string;
+    palmVerdict?: string;
+    bodyVerdict?: string;
+    currentAge?: number;
+    lunarAge?: number;
+    captureDateStr?: string;
+    currentStageTitle?: string;
+    stageProgressPercent?: number;
+    tuViThanTransition?: string;
+    facePalmRealtimeReflection?: string;
+    immediateActionAdvice?: string;
+    overallScore: number;
+    offlineFallback: string;
+  }
+): Promise<string> {
+  try {
+    const ai = getAiClient();
+    const prompt = `Bạn là Chưởng Môn Thiên Cơ Các - Bậc Thầy Tối Cao thông tuệ cả 4 môn huyền học Á Đông: Tử Vi Đẩu Số, Nhân Tướng Học, Thần Số Học Pythagoras và Phong Thủy Bát Trạch.
+Hôm nay bạn tiến hành viết "ĐẠI TỔNG LUẬN VẬN MỆNH TOÀN THƯ" kết hợp toàn diện tất cả các thông tin đã thu thập được cho đương số:
+
+THÔNG TIN ĐƯƠNG SỐ:
+- Họ tên: ${synthesisData.personName} (${synthesisData.gender === 'nam' ? 'Nam Mạng' : 'Nữ Mạng'})
+- Ngày sinh: ${synthesisData.solarDateStr} Dương Lịch (${synthesisData.lunarDateStr})
+- Năm sinh: ${synthesisData.canChiYear} • Nạp Âm: ${synthesisData.menhNguHanh}
+- Cung Mệnh: ${synthesisData.cungMenh} • Cung Thân: ${synthesisData.cungThan} • Cục: ${synthesisData.cuc}
+- Bát Trạch Cung Phi: ${synthesisData.cungPhi} (${synthesisData.batTrachGroup})
+- Con số chủ đạo Pythagoras: Số ${synthesisData.lifePathNumber || 8}
+- Tướng Mạo & Chỉ Tay:
+  ${synthesisData.hasFace ? `+ Tướng Mặt: ${synthesisData.faceVerdict || 'Tam Đình cân đối, trán cao sáng, mắt có thần quang'}` : '+ Chưa chụp tướng mặt'}
+  ${synthesisData.hasPalm ? `+ Chỉ Tay: ${synthesisData.palmVerdict || 'Ba đại lộ Sinh - Trí - Tâm đạo sâu dài liền mạch, gò bàn tay nở nang'}` : '+ Chưa chụp chỉ tay'}
+  ${synthesisData.bodyVerdict ? `+ Dáng vóc: ${synthesisData.bodyVerdict}` : ''}
+- Thời điểm lưu dấu ảnh chụp: ${synthesisData.captureDateStr || 'Thời điểm lập hồ sơ'}
+- Độ tuổi tại thời điểm chụp: ${synthesisData.currentAge || 35} tuổi (${synthesisData.lunarAge || 36} tuổi mụ)
+- Chặng đường vận mệnh hiện tại: [${synthesisData.currentStageTitle || 'Thực Chiến • Xung Trận Lập Nghiệp'}] (Tiến trình dòng đời: ~${synthesisData.stageProgressPercent || 45}%)
+- Điểm Vận Mệnh Định Mệnh Tổng Hòa: ${synthesisData.overallScore} / 100 Điểm.
+
+YÊU CẦU BÀI ĐẠI TỔNG LUẬN:
+Viết bài phân tích tổng hòa sâu sắc, uyên bác, văn phong kiếm hiệp / huyền học Á Đông trang trọng, mạch lạc, đắt giá gồm 5 chương:
+1. TIÊN THIÊN VÀ HẬU THIÊN HỘI TỤ:
+   - Tử Vi (Tiên thiên) kết hợp cùng Tướng Mạo & Chỉ tay (Hậu thiên): Tướng tùng tâm sinh, tướng mạo thực tế đang trợ lực hay chuyển hóa cung số thế nào?
+   - Con số chủ đạo Pythagoras cộng hưởng ra sao với Cung Mệnh và Cung Thân?
+2. BÁT TRẠCH ĐỊA KHÍ BẢO HỘ:
+   - Cung Phi Bát Trạch tương tác thế nào để chiêu tài, tụ phúc và hóa giải hung sát.
+3. TỔNG KẾT 4 ĐẠI GIAI ĐOẠN ĐỊNH MỆNH:
+   - 1. Khởi Sinh (0 - 18 tuổi): Ươm mầm căn cốt, hấp thu phúc đức gia đình.
+   - 2. Tu Luyện (19 - 30 tuổi): Mài gươm luyện ý chí, trui rèn qua thử thách đầu đời.
+   - 3. Thực Chiến (31 - 50 tuổi): Hoàng kim bùng nổ, gặt hái thành tựu danh vọng.
+   - 4. Hậu Vận (Từ 51 tuổi trở đi): Viên mãn an lạc, tích phúc truyền thừa, thọ trường điền sản.
+4. ĐẶC BIỆT: NHẬN XÉT TỌA ĐỘ VẬN MỆNH TẠI THỜI ĐIỂM CHỤP ẢNH:
+   - Nhận xét chi tiết: Ở thời điểm chụp ảnh (tuổi ${synthesisData.currentAge || 35}, tuổi mụ ${synthesisData.lunarAge || 36}), đương số đang đứng ở đâu trên hành trình nhân sinh?
+   - Thần thái nét mặt, ánh mắt và chỉ tay chụp lại phản ánh nội lực và khí thế chiến đấu/tu dưỡng ra sao?
+   - Sự chuyển giao quyền năng từ Cung Mệnh (${synthesisData.cungMenh}) sang Cung Thân (${synthesisData.cungThan}) trong Tử Vi đang tác động thế nào?
+   - Lời khuyên hành động tức thời mang tính bước ngoặt ngay tại thời điểm này!
+5. TỔNG LUẬN CẢI MỆNH PHÁP (TỨ TRỤ CẢI VẬN):
+   - Lời khuyên vàng về Tu Thân, Dưỡng Tâm, Luyện Trí và Hành Thiện để đạt đến cảnh giới Đức Năng Thắng Số.
+   
+Định dạng bài viết đẹp, giàu cảm hứng và truyền năng lượng tích cực cho đương số.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: {
+        role: 'user',
+        parts: [{ text: prompt }]
+      }
+    });
+
+    return response.text || synthesisData.offlineFallback;
+  } catch (err) {
+    console.error("Gemini Master Synthesis error:", err);
+    return synthesisData.offlineFallback;
+  }
+}

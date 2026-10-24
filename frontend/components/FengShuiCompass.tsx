@@ -8,12 +8,17 @@ import {
 } from '../constants';
 import { calculateCungPhi } from '../services/loveMatchService';
 import { 
+  getActiveDossier, 
+  getActiveDossierName, 
+  getUserDossiers, 
+  upsertUserDossier 
+} from '../services/dossierService';
+import { 
   Navigation, 
   RotateCw, 
   RotateCcw, 
   Compass as CompassIcon, 
   Sparkles, 
-  BookmarkPlus, 
   ShieldCheck, 
   AlertTriangle, 
   Home, 
@@ -24,18 +29,50 @@ import {
   Sliders,
   CheckCircle2,
   Lock,
-  Unlock
+  Unlock,
+  User,
+  Calendar,
+  Check
 } from 'lucide-react';
 
 interface FengShuiCompassProps {
-  onSaveResult: (record: { title: string; summary: string; fullContent: string; type: 'compass' }) => void;
+  onSaveResult: (record: { title: string; summary: string; fullContent: string; type: 'compass'; personName?: string }) => void;
 }
 
 export const FengShuiCompass: React.FC<FengShuiCompassProps> = ({ onSaveResult }) => {
   // Thông tin đương số
-  const [userName, setUserName] = useState('Gia Chủ');
-  const [gender, setGender] = useState<'nam' | 'nu'>('nam');
-  const [birthYear, setBirthYear] = useState<number>(1984); // Mặc định 1984 Giáp Tý (Cung Đoài Tây Tứ Mệnh cho Nam)
+  const [userName, setUserName] = useState<string>(() => {
+    try {
+      const active = getActiveDossier();
+      if (active?.fullName?.trim()) return active.fullName.trim();
+    } catch {}
+    return 'Gia Chủ';
+  });
+  const [gender, setGender] = useState<'nam' | 'nu'>(() => {
+    try {
+      const active = getActiveDossier();
+      if (active?.gender) return active.gender;
+    } catch {}
+    return 'nam';
+  });
+  const [birthYear, setBirthYear] = useState<number>(() => {
+    try {
+      const active = getActiveDossier();
+      if (active?.birthDate) {
+        const y = parseInt(active.birthDate.split('-')[0], 10);
+        if (!isNaN(y)) return y;
+      }
+    } catch {}
+    return 1984;
+  });
+  const [hasBirthYear, setHasBirthYear] = useState<boolean>(() => {
+    try {
+      const active = getActiveDossier();
+      return !!active?.birthDate;
+    } catch {}
+    return true;
+  });
+  const [isDossierSynced, setIsDossierSynced] = useState<boolean>(false);
 
   // Trạng thái la bàn
   const [heading, setHeading] = useState<number>(0); // Góc xoay hiện tại (0 - 359 độ)
@@ -94,7 +131,55 @@ export const FengShuiCompass: React.FC<FengShuiCompassProps> = ({ onSaveResult }
     };
   };
 
-  // Cập nhật khi thay đổi năm sinh / giới tính
+  // Tự động đồng bộ với hồ sơ đang kích hoạt (Lấy từ Tử Vi hoặc Sổ hồ sơ)
+  const syncFromDossier = (targetName?: string) => {
+    const activeName = (targetName || getActiveDossierName()).trim();
+    const allDossiers = getUserDossiers();
+    const matched = allDossiers.find(d => d.fullName.trim().toLowerCase() === activeName.toLowerCase());
+
+    if (matched) {
+      setIsDossierSynced(true);
+      setUserName(matched.fullName);
+      if (matched.gender) {
+        setGender(matched.gender);
+      }
+      if (matched.birthDate) {
+        const y = parseInt(matched.birthDate.split('-')[0], 10);
+        if (!isNaN(y)) {
+          setBirthYear(y);
+          setHasBirthYear(true);
+        }
+      } else {
+        setHasBirthYear(false);
+      }
+    } else if (activeName) {
+      setIsDossierSynced(false);
+      setUserName(activeName);
+    }
+  };
+
+  useEffect(() => {
+    // Chạy đồng bộ ngay lập tức khi vào tab
+    syncFromDossier();
+
+    const handleActiveChange = (e: any) => {
+      const name = typeof e.detail === 'string' ? e.detail : e.detail?.name;
+      syncFromDossier(name);
+    };
+
+    const handleDossierUpdate = () => {
+      syncFromDossier();
+    };
+
+    window.addEventListener('thien_co_cac_active_name_changed', handleActiveChange);
+    window.addEventListener('thien_co_cac_dossier_updated', handleDossierUpdate);
+    return () => {
+      window.removeEventListener('thien_co_cac_active_name_changed', handleActiveChange);
+      window.removeEventListener('thien_co_cac_dossier_updated', handleDossierUpdate);
+    };
+  }, []);
+
+  // Cập nhật khi thay đổi năm sinh / giới tính / họ tên
   useEffect(() => {
     const prof = calculateCompassProfile(birthYear, gender, userName);
     setCompassProfile(prof);
@@ -109,14 +194,12 @@ export const FengShuiCompass: React.FC<FengShuiCompassProps> = ({ onSaveResult }
     if (isLocked) return;
 
     const handleOrientation = (event: DeviceOrientationEvent) => {
-      // Trên iOS Safari có webkitCompassHeading, trên Android có alpha
       let currentDegree: number | null = null;
       
       const evtAny = event as any;
       if (typeof evtAny.webkitCompassHeading !== 'undefined') {
         currentDegree = evtAny.webkitCompassHeading;
       } else if (event.alpha !== null) {
-        // Trên Android, alpha ngược chiều kim đồng hồ
         currentDegree = (360 - event.alpha) % 360;
       }
 
@@ -126,7 +209,6 @@ export const FengShuiCompass: React.FC<FengShuiCompassProps> = ({ onSaveResult }
       }
     };
 
-    // Kiểm tra xem trình duyệt có hỗ trợ không
     if (typeof window !== 'undefined' && 'DeviceOrientationEvent' in window) {
       window.addEventListener('deviceorientation', handleOrientation, true);
     }
@@ -163,7 +245,6 @@ export const FengShuiCompass: React.FC<FengShuiCompassProps> = ({ onSaveResult }
     return compassProfile.directions.find(d => {
       const [start, end] = d.degreesRange;
       if (start > end) {
-        // Hướng Bắc (337.5 -> 22.5)
         return normalized >= start || normalized < end;
       }
       return normalized >= start && normalized < end;
@@ -182,6 +263,32 @@ export const FengShuiCompass: React.FC<FengShuiCompassProps> = ({ onSaveResult }
   const snapToDirection = (deg: number, dirInfo: CompassDirectionInfo) => {
     setHeading(deg);
     setSelectedDirection(dirInfo);
+  };
+
+  const handleUserNameChange = (val: string) => {
+    setUserName(val);
+    if (val.trim()) {
+      upsertUserDossier({ fullName: val.trim(), gender });
+    }
+  };
+
+  const handleGenderChange = (val: 'nam' | 'nu') => {
+    setGender(val);
+    if (userName.trim()) {
+      upsertUserDossier({ fullName: userName.trim(), gender: val });
+    }
+  };
+
+  const handleBirthYearChange = (yearVal: number) => {
+    setBirthYear(yearVal);
+    setHasBirthYear(true);
+    if (userName.trim()) {
+      const active = getActiveDossier();
+      const currentBirthDate = active?.birthDate || `${yearVal}-01-01`;
+      const dateParts = currentBirthDate.split('-');
+      const newBirthDate = `${yearVal}-${dateParts[1] || '01'}-${dateParts[2] || '01'}`;
+      upsertUserDossier({ fullName: userName.trim(), gender, birthDate: newBirthDate });
+    }
   };
 
   const handleSaveToHistory = () => {
@@ -207,6 +314,7 @@ HƯỚNG ĐANG ĐO:
 
     onSaveResult({
       title: `La Bàn Phong Thủy: ${compassProfile.name} (${compassProfile.cungPhi} - ${compassProfile.menhQuai})`,
+      personName: compassProfile.name,
       summary: `Hướng đo: ${heading}° (${currentFacingDir.directionName} - ${currentFacingDir.quality}) • 4 Hướng Tốt: ${goodDirs}`,
       fullContent: fullText,
       type: 'compass'
@@ -237,38 +345,71 @@ HƯỚNG ĐANG ĐO:
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={() => {
-                setBirthYear(1984);
-                setGender('nam');
-                setUserName('Gia Chủ Giáp Tý');
-              }}
-              className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-400/40 transition active:scale-95"
-            >
-              Mẫu: Nam 1984 (Cung Đoài - Tây Tứ Mệnh)
-            </button>
-            <button
-              onClick={() => {
-                setBirthYear(1990);
-                setGender('nu');
-                setUserName('Gia Chủ Canh Ngọ');
-              }}
-              className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400/40 transition active:scale-95"
-            >
-              Mẫu: Nữ 1990 (Cung Cấn - Tây Tứ Mệnh)
-            </button>
+
+        </div>
+
+        {/* Thanh Chỉ Báo Trạng Thái Đồng Bộ Hồ Sơ Đương Số */}
+        <div className="mt-4 p-3.5 rounded-2xl bg-slate-950/80 border border-emerald-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-400/50 flex items-center justify-center text-emerald-300">
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-bold text-slate-100">
+                  Gia chủ: <strong className="text-emerald-300 font-extrabold">{userName}</strong>
+                </span>
+                {isDossierSynced && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 flex items-center gap-1">
+                    <Check className="w-2.5 h-2.5 text-emerald-400" />
+                    <span>Đã tự động nạp từ Hồ sơ / Tử Vi</span>
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                {hasBirthYear
+                  ? `Năm sinh ${birthYear} và giới tính (${gender === 'nam' ? 'Nam' : 'Nữ'}) đã được lấy tự động từ hồ sơ đương số.`
+                  : '⚠️ Hồ sơ này hiện chưa có năm sinh. Vui lòng chọn năm sinh dưới đây để định Cung Phi chính xác!'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 text-xs font-bold">
+            <span className="px-3 py-1.5 rounded-xl bg-emerald-500/15 text-emerald-300 border border-emerald-400/30">
+              {gender === 'nam' ? 'Nam Mạng' : 'Nữ Mạng'}
+            </span>
+            <span className="px-3 py-1.5 rounded-xl bg-amber-500/15 text-amber-300 border border-amber-400/30">
+              Năm sinh: {birthYear}
+            </span>
           </div>
         </div>
 
+        {/* CẢNH BÁO NẾU THIẾU NĂM SINH */}
+        {!hasBirthYear && (
+          <div className="mt-3 p-3.5 rounded-2xl bg-amber-500/15 border-2 border-amber-400 text-amber-200 flex items-start gap-2.5 animate-pulse">
+            <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <h4 className="font-bold text-xs sm:text-sm text-amber-300">
+                Cần bổ sung Năm sinh cho gia chủ "{userName}"
+              </h4>
+              <p className="text-xs text-slate-300 mt-0.5">
+                Phong thủy Bát Trạch cần năm sinh và giới tính để tính Cung Phi (Càn, Khảm, Cấn, Chấn, Tốn, Ly, Khôn, Đoài). Xin vui lòng chọn năm sinh vào ô bên dưới, hệ thống sẽ tự động lưu vào hồ sơ!
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Form nhập thông tin gia chủ */}
-        <div className="mt-5 grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
           <div className="sm:col-span-4">
-            <label className="block text-xs font-semibold text-emerald-200 mb-1">Họ tên gia chủ:</label>
+            <label className="block text-xs font-semibold text-emerald-200 mb-1 flex items-center gap-1.5">
+              <User className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Họ tên gia chủ:</span>
+            </label>
             <input
               type="text"
               value={userName}
-              onChange={(e) => setUserName(e.target.value)}
+              onChange={(e) => handleUserNameChange(e.target.value)}
               className="w-full bg-slate-950 border border-slate-700 focus:border-emerald-400 rounded-xl px-3.5 py-2 text-sm text-slate-100 focus:outline-none"
             />
           </div>
@@ -278,7 +419,7 @@ HƯỚNG ĐANG ĐO:
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => setGender('nam')}
+                onClick={() => handleGenderChange('nam')}
                 className={`py-2 text-xs rounded-xl font-bold border transition ${
                   gender === 'nam'
                     ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow'
@@ -289,7 +430,7 @@ HƯỚNG ĐANG ĐO:
               </button>
               <button
                 type="button"
-                onClick={() => setGender('nu')}
+                onClick={() => handleGenderChange('nu')}
                 className={`py-2 text-xs rounded-xl font-bold border transition ${
                   gender === 'nu'
                     ? 'bg-pink-600 text-white border-pink-400 shadow'
@@ -302,14 +443,22 @@ HƯỚNG ĐANG ĐO:
           </div>
 
           <div className="sm:col-span-4">
-            <label className="block text-xs font-semibold text-emerald-200 mb-1">Năm sinh (Âm lịch):</label>
+            <label className="block text-xs font-semibold text-emerald-200 mb-1 flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Năm sinh (Âm lịch):</span>
+              {!hasBirthYear && <span className="text-rose-400 font-bold">* (Cần bổ sung)</span>}
+            </label>
             <input
               type="number"
               min="1920"
               max="2035"
               value={birthYear}
-              onChange={(e) => setBirthYear(parseInt(e.target.value) || 1984)}
-              className="w-full bg-slate-950 border border-slate-700 focus:border-emerald-400 rounded-xl px-3.5 py-2 text-sm text-center font-bold text-amber-300 focus:outline-none"
+              onChange={(e) => handleBirthYearChange(parseInt(e.target.value) || 1984)}
+              className={`w-full bg-slate-950 border rounded-xl px-3.5 py-2 text-sm text-center font-bold text-amber-300 focus:outline-none transition ${
+                !hasBirthYear
+                  ? 'border-amber-400 ring-2 ring-amber-400/50 bg-amber-950/20'
+                  : 'border-slate-700 focus:border-emerald-400'
+              }`}
             />
           </div>
         </div>
@@ -355,25 +504,30 @@ HƯỚNG ĐANG ĐO:
             <div className="flex items-center gap-2">
               {/* Nút khóa hướng */}
               <button
-                onClick={() => setIsLocked(!isLocked)}
+                onClick={() => {
+                  const nextLocked = !isLocked;
+                  setIsLocked(nextLocked);
+                  if (nextLocked) {
+                    handleSaveToHistory();
+                  }
+                }}
                 className={`flex items-center gap-1 px-3 py-1 rounded-xl text-xs font-semibold border transition ${
                   isLocked 
                     ? 'bg-amber-500 text-slate-950 border-amber-400' 
                     : 'bg-slate-800 text-slate-300 border-slate-700 hover:text-white'
                 }`}
-                title={isLocked ? 'Mở khóa góc xoay' : 'Khóa góc xoay để xem'}
+                title={isLocked ? 'Mở khóa góc xoay' : 'Khóa góc xoay để xem và tự động lưu sổ'}
               >
                 {isLocked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
                 <span>{isLocked ? 'Đã Khóa' : 'Khóa Hướng'}</span>
               </button>
 
-              <button
-                onClick={handleSaveToHistory}
-                className="px-3 py-1 rounded-xl bg-purple-900/40 hover:bg-purple-800 text-purple-200 border border-purple-500/40 text-xs font-semibold flex items-center gap-1 transition"
-              >
-                <BookmarkPlus className="w-3.5 h-3.5" />
-                <span>{savedSuccess ? 'Đã Lưu!' : 'Lưu Sổ'}</span>
-              </button>
+              {savedSuccess && (
+                <div className="px-3 py-1 rounded-xl bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 text-xs font-semibold flex items-center gap-1 shadow animate-fadeIn">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>✓ Đã tự động lưu</span>
+                </div>
+              )}
             </div>
           </div>
 

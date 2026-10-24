@@ -5,6 +5,7 @@ import { analyzeNumerologyWithGemini } from '../services/geminiService';
 import { 
   upsertUserDossier, 
   getActiveDossierName, 
+  getActiveDossier,
   getUserDossiers 
 } from '../services/dossierService';
 import { 
@@ -20,7 +21,12 @@ import {
   Layers, 
   Zap, 
   HelpCircle,
-  ArrowUpRight
+  ArrowUpRight,
+  CheckCircle2,
+  AlertTriangle,
+  ShieldCheck,
+  Check,
+  RefreshCw
 } from 'lucide-react';
 
 interface NumerologyProps {
@@ -36,36 +42,72 @@ interface NumerologyProps {
 export const NumerologyView: React.FC<NumerologyProps> = ({ onSaveResult }) => {
   const [fullName, setFullName] = useState(() => {
     try {
-      const active = getActiveDossierName();
-      if (active && active.trim()) return active.trim();
+      const active = getActiveDossier();
+      if (active?.fullName?.trim()) return active.fullName.trim();
       const saved = localStorage.getItem('thien_co_cac_user_name');
       if (saved && saved.trim()) return saved.trim();
     } catch {}
     return 'Nguyễn Văn An';
   });
-  const [birthDate, setBirthDate] = useState('1998-08-18');
+  const [birthDate, setBirthDate] = useState(() => {
+    try {
+      const active = getActiveDossier();
+      if (active?.birthDate) return active.birthDate;
+    } catch {}
+    return '1998-08-18';
+  });
   const [report, setReport] = useState<NumerologyReport | null>(null);
   const [aiReading, setAiReading] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [isDossierSynced, setIsDossierSynced] = useState<boolean>(false);
 
-  // Tự động đồng bộ với hồ sơ đang kích hoạt
-  useEffect(() => {
-    const handleActiveChange = (e: any) => {
-      const activeName = e.detail?.name || getActiveDossierName();
-      if (!activeName) return;
-      setFullName(activeName);
+  // Tự động đồng bộ với hồ sơ đang kích hoạt (Lấy từ Tử Vi hoặc Sổ hồ sơ)
+  const syncFromDossier = (targetName?: string) => {
+    const activeName = (targetName || getActiveDossierName()).trim();
+    const allDossiers = getUserDossiers();
+    const matched = allDossiers.find(d => d.fullName.trim().toLowerCase() === activeName.toLowerCase());
 
-      const allDossiers = getUserDossiers();
-      const matched = allDossiers.find(d => d.fullName.toLowerCase() === activeName.toLowerCase());
-      if (matched && matched.birthDate) {
+    if (matched) {
+      setIsDossierSynced(true);
+      setFullName(matched.fullName);
+      if (matched.birthDate) {
         setBirthDate(matched.birthDate);
+        // TỰ ĐỘNG TÍNH TOÁN BẢN ĐỒ THẦN SỐ HỌC NGAY TỨC KHẮC
+        try {
+          const generated = generateNumerologyReport(matched.fullName, matched.birthDate);
+          setReport(generated);
+        } catch (e) {
+          console.warn("Could not auto-generate numerology:", e);
+        }
+      } else {
+        setBirthDate('');
+        setReport(null);
       }
+    } else if (activeName) {
+      setIsDossierSynced(false);
+      setFullName(activeName);
+    }
+  };
+
+  useEffect(() => {
+    // Chạy đồng bộ ngay lập tức khi vào tab
+    syncFromDossier();
+
+    const handleActiveChange = (e: any) => {
+      const name = typeof e.detail === 'string' ? e.detail : e.detail?.name;
+      syncFromDossier(name);
+    };
+
+    const handleDossierUpdate = () => {
+      syncFromDossier();
     };
 
     window.addEventListener('thien_co_cac_active_name_changed', handleActiveChange);
+    window.addEventListener('thien_co_cac_dossier_updated', handleDossierUpdate);
     return () => {
       window.removeEventListener('thien_co_cac_active_name_changed', handleActiveChange);
+      window.removeEventListener('thien_co_cac_dossier_updated', handleDossierUpdate);
     };
   }, []);
 
@@ -76,12 +118,30 @@ export const NumerologyView: React.FC<NumerologyProps> = ({ onSaveResult }) => {
     } catch {}
     if (val.trim()) {
       upsertUserDossier({ fullName: val.trim(), birthDate });
+      if (birthDate) {
+        try {
+          const generated = generateNumerologyReport(val.trim(), birthDate);
+          setReport(generated);
+        } catch (e) {}
+      }
+    }
+  };
+
+  const handleBirthDateChange = (val: string) => {
+    setBirthDate(val);
+    if (val && fullName.trim()) {
+      upsertUserDossier({ fullName: fullName.trim(), birthDate: val });
+      try {
+        const generated = generateNumerologyReport(fullName.trim(), val);
+        setReport(generated);
+      } catch (e) {}
     }
   };
 
   // Xử lý tính toán và luận giải AI
   const handleCalculate = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (!birthDate) return;
     setLoading(true);
     setAiReading(null);
 
@@ -99,24 +159,16 @@ export const NumerologyView: React.FC<NumerologyProps> = ({ onSaveResult }) => {
     const analysis = await analyzeNumerologyWithGemini(generated);
     setAiReading(analysis);
     setLoading(false);
-  };
 
-  const handleSave = () => {
-    if (!report || !aiReading) return;
+    // TỰ ĐỘNG LƯU VÀO SỔ TAY VẬN MỆNH (AUTO-SAVE 100%)
     onSaveResult({
-      title: `Thần Số Học: ${report.fullName} (Số Chủ Đạo ${report.isMaster22 ? '22/4' : report.lifePathNumber})`,
-      personName: report.fullName,
-      summary: `Số Chủ Đạo: ${report.isMaster22 ? '22/4' : report.lifePathNumber} • Số Linh Hồn: ${report.soulUrgeNumber} • Năm Cá Nhân: ${report.personalYear}`,
-      fullContent: aiReading,
+      title: `Thần Số Học: ${generated.fullName} (Số Chủ Đạo ${generated.isMaster22 ? '22/4' : generated.lifePathNumber})`,
+      personName: generated.fullName,
+      summary: `Số Chủ Đạo: ${generated.isMaster22 ? '22/4' : generated.lifePathNumber} • Số Linh Hồn: ${generated.soulUrgeNumber} • Năm Cá Nhân: ${generated.personalYear}`,
+      fullContent: analysis,
       type: 'numerology'
     });
     setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3000);
-  };
-
-  const setSampleData = (name: string, date: string) => {
-    setFullName(name);
-    setBirthDate(date);
   };
 
   return (
@@ -141,24 +193,60 @@ export const NumerologyView: React.FC<NumerologyProps> = ({ onSaveResult }) => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={() => setSampleData('Lê Hoàng Long', '1990-10-24')}
-              className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-400/40 transition active:scale-95"
-            >
-              Mẫu: Số Chủ Đạo 8
-            </button>
-            <button
-              onClick={() => setSampleData('Trần Minh Tuấn', '1984-10-10')}
-              className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-400/40 transition active:scale-95"
-            >
-              Mẫu: Số Chủ Đạo 6
-            </button>
-          </div>
+
         </div>
 
+        {/* Thanh Chỉ Báo Trạng Thái Đồng Bộ Hồ Sơ Đương Số */}
+        <div className="mt-4 p-3.5 rounded-2xl bg-slate-950/80 border border-indigo-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-indigo-500/20 border border-indigo-400/50 flex items-center justify-center text-indigo-300">
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-bold text-slate-100">
+                  Đương số: <strong className="text-indigo-300 font-extrabold">{fullName}</strong>
+                </span>
+                {isDossierSynced && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 flex items-center gap-1">
+                    <Check className="w-2.5 h-2.5 text-emerald-400" />
+                    <span>Đã tự động nạp từ Hồ sơ / Tử Vi</span>
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                {birthDate
+                  ? `Ngày sinh ${birthDate} đã được đồng bộ tự động. Bạn có thể sửa đổi bên dưới nếu cần.`
+                  : '⚠️ Hồ sơ này hiện chưa có Ngày sinh Dương lịch. Vui lòng chọn ngày sinh để kích hoạt bản đồ Pythagoras!'}
+              </p>
+            </div>
+          </div>
+
+          {birthDate && (
+            <div className="flex items-center gap-1.5 text-xs text-amber-300 font-bold px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-400/40">
+              <Calendar className="w-3.5 h-3.5 text-amber-400" />
+              <span>Dương lịch: {birthDate}</span>
+            </div>
+          )}
+        </div>
+
+        {/* CẢNH BÁO NẾU THIẾU NGÀY SINH */}
+        {!birthDate && (
+          <div className="mt-3 p-3.5 rounded-2xl bg-amber-500/15 border-2 border-amber-400 text-amber-200 flex items-start gap-2.5 animate-pulse">
+            <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <h4 className="font-bold text-xs sm:text-sm text-amber-300">
+                Cần bổ sung Ngày sinh Dương lịch cho hồ sơ "{fullName}"
+              </h4>
+              <p className="text-xs text-slate-300 mt-0.5">
+                Thần Số Học Pythagoras giải mã vận mệnh dựa trên ngày/tháng/năm sinh. Xin vui lòng chọn ngày sinh vào ô bên dưới, hệ thống sẽ tự động lưu vào hồ sơ và tính toán tức thì!
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Form nhập Họ tên và Ngày sinh */}
-        <form onSubmit={handleCalculate} className="mt-5 grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+        <form onSubmit={handleCalculate} className="mt-4 grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
           <div className="sm:col-span-5">
             <label className="block text-xs font-semibold text-indigo-200 mb-1 flex items-center gap-1.5">
               <User className="w-3.5 h-3.5 text-indigo-400" />
@@ -178,20 +266,25 @@ export const NumerologyView: React.FC<NumerologyProps> = ({ onSaveResult }) => {
             <label className="block text-xs font-semibold text-indigo-200 mb-1 flex items-center gap-1.5">
               <Calendar className="w-3.5 h-3.5 text-indigo-400" />
               <span>Ngày sinh Dương lịch:</span>
+              {!birthDate && <span className="text-rose-400 font-bold">* (Cần bổ sung)</span>}
             </label>
             <input
               type="date"
               required
               value={birthDate}
-              onChange={(e) => setBirthDate(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-700 focus:border-indigo-400 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+              onChange={(e) => handleBirthDateChange(e.target.value)}
+              className={`w-full bg-slate-950 border rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-1 transition ${
+                !birthDate 
+                  ? 'border-amber-400 ring-2 ring-amber-400/50 bg-amber-950/20' 
+                  : 'border-slate-700 focus:border-indigo-400 focus:ring-indigo-400'
+              }`}
             />
           </div>
 
           <div className="sm:col-span-3">
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !birthDate}
               className="w-full py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm bg-gradient-to-r from-indigo-500 via-purple-600 to-indigo-600 hover:from-indigo-400 hover:to-purple-500 text-white flex items-center justify-center gap-2 shadow-lg shadow-indigo-900/30 active:scale-95 transition disabled:opacity-50"
             >
               {loading ? (
@@ -202,7 +295,7 @@ export const NumerologyView: React.FC<NumerologyProps> = ({ onSaveResult }) => {
               ) : (
                 <>
                   <Sparkles className="w-4 h-4" />
-                  <span>Tra Cứu Bản Đồ Số</span>
+                  <span>{report ? 'Bình Giải Chi Tiết AI' : 'Tra Cứu Bản Đồ Số'}</span>
                 </>
               )}
             </button>
@@ -364,13 +457,10 @@ export const NumerologyView: React.FC<NumerologyProps> = ({ onSaveResult }) => {
                     Bình Giải Chi Tiết Bản Đồ Thần Số Học (AI Pythagoras)
                   </h3>
                 </div>
-                <button
-                  onClick={handleSave}
-                  className="px-4 py-2 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-400/50 text-xs font-semibold flex items-center gap-1.5 transition active:scale-95"
-                >
-                  <BookmarkPlus className="w-4 h-4" />
-                  <span>{savedSuccess ? 'Đã lưu sổ tay!' : 'Lưu kết quả này'}</span>
-                </button>
+                <div className="px-3.5 py-1.5 rounded-xl bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 text-xs font-semibold flex items-center gap-1.5 shadow">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Đã tự động lưu vào Sổ</span>
+                </div>
               </div>
 
               <div className="text-sm text-slate-200 leading-relaxed whitespace-pre-line bg-slate-900/60 p-5 rounded-2xl border border-slate-800/80">

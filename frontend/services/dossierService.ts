@@ -77,7 +77,10 @@ export function setActiveDossierName(name: string): void {
   try {
     localStorage.setItem(ACTIVE_NAME_STORAGE_KEY, trimmed);
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('thien_co_cac_active_name_changed', { detail: trimmed }));
+      const activeDos = getActiveDossier();
+      window.dispatchEvent(new CustomEvent('thien_co_cac_active_name_changed', { 
+        detail: { name: trimmed, dossier: activeDos } 
+      }));
     }
   } catch (e) {
     console.error("Error setting active name:", e);

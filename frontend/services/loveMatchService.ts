@@ -423,3 +423,183 @@ export function calculateLoveMatch(p1: PersonLoveInput, p2: PersonLoveInput): Lo
     }
   };
 }
+
+/**
+ * Cấu trúc thông tin Mẫu Người Hợp Duyên Lý Tưởng do Thầy Bói dự đoán trước
+ */
+export interface CandidateIdealYear {
+  year: number;
+  canChi: string;
+  napAm: string;
+  cungPhi: string;
+  score: number;
+  verdict: string;
+  ageDiffText: string;
+  reasons: string[];
+}
+
+export interface IdealPartnerAdvice {
+  userSummary: {
+    name: string;
+    gender: 'nam' | 'nu';
+    canChiYear: string;
+    napAm: string;
+    hanh: string;
+    cungPhi: string;
+    lunarYear: number;
+  };
+  idealCriteria: {
+    tamHopBranches: string[];
+    lucHopBranch: string;
+    sinhHanhList: string[];
+    cungPhiGoodList: string[];
+    hopCan: string;
+  };
+  fortuneTellerWords: string;
+  topCandidateYears: CandidateIdealYear[];
+}
+
+/**
+ * Hàm phân tích trước mẫu người hợp với đương số (Proactive Ideal Match Prediction)
+ */
+export function findIdealPartnerAdvice(p1: PersonLoveInput): IdealPartnerAdvice {
+  let conv1: LunarDateResult;
+  if (p1.calendarMode === 'solar') {
+    conv1 = convertSolar2Lunar(p1.day, p1.month, p1.year);
+  } else {
+    const sol = convertLunar2Solar(p1.day, p1.month, p1.year, p1.isLeapMonth);
+    conv1 = convertSolar2Lunar(sol.day, sol.month, sol.year);
+  }
+
+  const can1 = conv1.canChiYear.split(' ')[0];
+  const chi1 = conv1.canChiYear.split(' ')[1];
+  const hanh1 = conv1.napAm.split(' ').pop() || 'Kim';
+  const phi1 = calculateCungPhi(conv1.lunarYear, p1.gender);
+
+  // Nhóm Tam Hợp & Lục Hợp
+  const tamHopGroups = [
+    ['Thân', 'Tý', 'Thìn'],
+    ['Dần', 'Ngọ', 'Tuất'],
+    ['Tỵ', 'Dậu', 'Sửu'],
+    ['Hợi', 'Mão', 'Mùi']
+  ];
+  const matchedTamHop = tamHopGroups.find(g => g.includes(chi1))?.filter(c => c !== chi1) || [];
+
+  const lucHopMap: Record<string, string> = {
+    'Tý': 'Sửu', 'Sửu': 'Tý',
+    'Dần': 'Hợi', 'Hợi': 'Dần',
+    'Mão': 'Tuất', 'Tuất': 'Mão',
+    'Thìn': 'Dậu', 'Dậu': 'Thìn',
+    'Tỵ': 'Thân', 'Thân': 'Tỵ',
+    'Ngọ': 'Mùi', 'Mùi': 'Ngọ'
+  };
+  const lucHopBranch = lucHopMap[chi1] || '';
+
+  // Ngũ hành tương sinh & tương hợp
+  const sinhPartnerHanh: Record<string, string[]> = {
+    'Kim': ['Thổ (Thổ sinh Kim - dưỡng mệnh)', 'Thủy (Kim sinh Thủy)', 'Kim (Tỉ hòa)'],
+    'Thủy': ['Kim (Kim sinh Thủy - dưỡng mệnh)', 'Mộc (Thủy sinh Mộc)', 'Thủy (Tỉ hòa)'],
+    'Mộc': ['Thủy (Thủy sinh Mộc - dưỡng mệnh)', 'Hỏa (Mộc sinh Hỏa)', 'Mộc (Tỉ hòa)'],
+    'Hỏa': ['Mộc (Mộc sinh Hỏa - dưỡng mệnh)', 'Thổ (Hỏa sinh Thổ)', 'Hỏa (Tỉ hòa)'],
+    'Thổ': ['Hỏa (Hỏa sinh Thổ - dưỡng mệnh)', 'Kim (Thổ sinh Kim)', 'Thổ (Tỉ hòa)']
+  };
+
+  const hopCanMap: Record<string, string> = {
+    'Giáp': 'Kỷ', 'Kỷ': 'Giáp',
+    'Ất': 'Canh', 'Canh': 'Ất',
+    'Bính': 'Tân', 'Tân': 'Bính',
+    'Đinh': 'Nhâm', 'Nhâm': 'Đinh',
+    'Mậu': 'Quý', 'Quý': 'Mậu'
+  };
+  const hopCan = hopCanMap[can1] || '';
+
+  // Bát Trạch phối Cát
+  const tayTu = ['Càn', 'Khôn', 'Cấn', 'Đoài'];
+  const isTay = tayTu.includes(phi1.cung);
+  const cungPhiGoodList = isTay
+    ? ['Đoài (Sinh Khí)', 'Khôn (Diên Niên)', 'Cấn (Thiên Y)', 'Càn (Phục Vị)']
+    : ['Tốn (Sinh Khí)', 'Ly (Diên Niên)', 'Khảm (Thiên Y)', 'Chấn (Phục Vị)'];
+
+  // Quét các năm sinh tiềm năng xung quanh tuổi đương số (-12 đến +12)
+  const candidateList: CandidateIdealYear[] = [];
+  const targetGender = p1.gender === 'nam' ? 'nu' : 'nam';
+  const startY = p1.year - 12;
+  const endY = p1.year + 12;
+
+  for (let y = startY; y <= endY; y++) {
+    // Đối soát tượng trưng với ngày 15/6 âm lịch năm y
+    const p2Candidate: PersonLoveInput = {
+      name: `Ứng viên ${y}`,
+      gender: targetGender,
+      calendarMode: 'solar',
+      day: 15,
+      month: 6,
+      year: y,
+      isLeapMonth: false
+    };
+
+    const res = calculateLoveMatch(p1, p2Candidate);
+
+    const diff = p1.year - y;
+    let ageDiffText = 'Bằng tuổi';
+    if (diff > 0) {
+      ageDiffText = p1.gender === 'nam' ? `Kém ${diff} tuổi` : `Lớn hơn ${diff} tuổi`;
+    } else if (diff < 0) {
+      ageDiffText = p1.gender === 'nam' ? `Lớn hơn ${Math.abs(diff)} tuổi` : `Kém ${Math.abs(diff)} tuổi`;
+    }
+
+    const reasons: string[] = [];
+    if (res.factors.diaChi.status === 'tot') reasons.push(res.factors.diaChi.title);
+    if (res.factors.cungPhi.status === 'tot') reasons.push(res.factors.cungPhi.title);
+    if (res.factors.nguHanh.status === 'tot') reasons.push(res.factors.nguHanh.title);
+    if (res.factors.thienCan.status === 'tot') reasons.push(res.factors.thienCan.title);
+
+    candidateList.push({
+      year: y,
+      canChi: res.person2.canChiYear,
+      napAm: res.person2.napAm,
+      cungPhi: res.person2.cungPhi,
+      score: res.totalScore,
+      verdict: res.verdict,
+      ageDiffText,
+      reasons: reasons.slice(0, 3)
+    });
+  }
+
+  // Sắp xếp các năm sinh có số điểm cao nhất lên đầu
+  candidateList.sort((a, b) => b.score - a.score);
+
+  // Lọc ra top 5 năm sinh tuổi vàng phù hợp nhất
+  const topCandidateYears = candidateList.slice(0, 5);
+
+  const displayName = p1.name?.trim() || 'con';
+  const fortuneTellerWords = `Chào ${displayName}, đường hôn nhân gia đạo là việc trọng đại cả đời. Thầy bấm quẻ Bát Tự Tiền Định cho con: Con là ${p1.gender === 'nam' ? 'Nam' : 'Nữ'} mạng, tuổi ${conv1.canChiYear}, bản mệnh ${conv1.napAm}, Cung Phi ngự tại ${phi1.cung} (${phi1.hanh}).
+
+Theo cổ thư thuật số, để vợ chồng hòa thuận tương kính như tân, con cháu đuề huề, con hợp nhất với người bạn đời mang các nét tướng mệnh:
+• Tuổi Địa Chi: Hợp nhất với các tuổi Tam Hợp (${matchedTamHop.join(', ')}) hoặc Lục Hợp (${lucHopBranch}).
+• Ngũ Hành Bản Mệnh: Hợp nhất với người mệnh ${sinhPartnerHanh[hanh1]?.[0] || 'tương sinh'}.
+• Cung Phi Bát Trạch: Phối Cát với các cung ${isTay ? 'Tây Tứ Mệnh (Đoài, Khôn, Cấn)' : 'Đông Tứ Mệnh (Khảm, Ly, Chấn, Tốn)'}.
+
+Thầy đã xem sẵn cho con các Tuổi Vàng đại cát đại lợi ở bảng bên dưới. Bây giờ con đã có ai trong lòng hoặc đang tìm hiểu ai có ngày tháng năm sinh cụ thể chưa, để thầy đặt quẻ chấm duyên chi tiết cho hai đứa?`;
+
+  return {
+    userSummary: {
+      name: displayName,
+      gender: p1.gender,
+      canChiYear: conv1.canChiYear,
+      napAm: conv1.napAm,
+      hanh: hanh1,
+      cungPhi: `${phi1.cung} (${phi1.hanh})`,
+      lunarYear: conv1.lunarYear
+    },
+    idealCriteria: {
+      tamHopBranches: matchedTamHop,
+      lucHopBranch,
+      sinhHanhList: sinhPartnerHanh[hanh1] || [],
+      cungPhiGoodList,
+      hopCan
+    },
+    fortuneTellerWords,
+    topCandidateYears
+  };
+}

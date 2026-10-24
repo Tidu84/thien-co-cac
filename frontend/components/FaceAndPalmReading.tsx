@@ -117,24 +117,44 @@ export const FaceAndPalmReading: React.FC<FacePalmProps> = ({ onSaveResult, init
   const [showOverlayGuide, setShowOverlayGuide] = useState<boolean>(true);
 
   // Lắng nghe thay đổi hồ sơ đang kích hoạt
-  useEffect(() => {
-    const handleActiveChange = (e: any) => {
-      const activeName = e.detail?.name || getActiveDossierName();
-      if (activeName) {
-        setUserName(activeName);
-        const allDossiers = getUserDossiers();
-        const matched = allDossiers.find(d => d.fullName.toLowerCase() === activeName.toLowerCase());
-        if (matched?.gender) {
+  const syncFromDossier = (overrideName?: string, mode?: 'face' | 'palm' | 'body') => {
+    try {
+      const activeName = (overrideName || getActiveDossierName() || localStorage.getItem('thien_co_cac_user_name') || '').trim();
+      if (!activeName) return;
+      setUserName(activeName);
+      const allDossiers = getUserDossiers();
+      const matched = allDossiers.find(d => d.fullName.toLowerCase() === activeName.toLowerCase());
+      if (matched) {
+        if (matched.gender) {
           setUserGender(matched.gender);
           setHandSide(matched.gender === 'nu' ? 'right' : 'left');
         }
+        loadPhotoFromDossier(activeName, mode || activeMode);
       }
+    } catch (e) {
+      console.warn("Lỗi sync hồ sơ FaceAndPalmReading:", e);
+    }
+  };
+
+  useEffect(() => {
+    syncFromDossier(undefined, activeMode);
+
+    const handleActiveChange = (e: any) => {
+      const activeName = e.detail?.name || (typeof e.detail === 'string' ? e.detail : null) || getActiveDossierName();
+      syncFromDossier(activeName, activeMode);
     };
+
+    const handleDossierUpdated = () => {
+      syncFromDossier(undefined, activeMode);
+    };
+
     window.addEventListener('thien_co_cac_active_name_changed', handleActiveChange);
+    window.addEventListener('thien_co_cac_dossier_updated', handleDossierUpdated);
     return () => {
       window.removeEventListener('thien_co_cac_active_name_changed', handleActiveChange);
+      window.removeEventListener('thien_co_cac_dossier_updated', handleDossierUpdated);
     };
-  }, []);
+  }, [activeMode]);
 
   const handleNameChange = (val: string) => {
     setUserName(val);
@@ -734,6 +754,56 @@ export const FaceAndPalmReading: React.FC<FacePalmProps> = ({ onSaveResult, init
     setAnalysisText(result);
     setLoading(false);
 
+    // TỰ ĐỘNG LƯU NGAY KẾT QUẢ VÀO HỒ SƠ ĐƯƠNG SỐ & SỔ TAY VẬN MỆNH (AUTO-SAVE 100%)
+    const finalPersonName = userName.trim() || 'Hữu Duyên Khách';
+    const typeLabel = activeMode === 'face' 
+      ? 'Tướng Mặt' 
+      : activeMode === 'palm' 
+      ? 'Chỉ Tay' 
+      : 'Tướng Toàn Thân';
+
+    const patternTitle = activeMode === 'face'
+      ? (selectedFacePattern ? selectedFacePattern.name : 'Nhân Diện Cát Tường')
+      : activeMode === 'palm'
+      ? (selectedPalmPattern ? selectedPalmPattern.name : 'Thủ Tướng Cát Tường')
+      : (selectedBodyPattern ? selectedBodyPattern.name : 'Cốt Cách Khí Phách');
+
+    const summaryText = `Luận giải ${activeMode === 'face' ? 'Tam Đình Ngũ Quan' : activeMode === 'palm' ? 'Sinh Đạo, Trí Đạo, Tâm Đạo' : 'Hình tướng cốt cách & tỷ lệ thân vóc'} cho đương số ${finalPersonName}`;
+
+    // Lưu chi tiết kết quả vào UserDossier
+    if (activeMode === 'face') {
+      upsertUserDossier({
+        fullName: finalPersonName,
+        faceImage: imagePreview || undefined,
+        faceVerdict: summaryText
+      });
+    } else if (activeMode === 'palm') {
+      upsertUserDossier({
+        fullName: finalPersonName,
+        palmImage: imagePreview || undefined,
+        palmSide: handSide,
+        palmCategory: selectedPalmPattern?.name,
+        palmVerdict: summaryText
+      });
+    } else {
+      upsertUserDossier({
+        fullName: finalPersonName,
+        bodyImage: imagePreview || undefined,
+        bodyVerdict: summaryText
+      });
+    }
+
+    // Tự động lưu vào danh sách sổ tay records
+    onSaveResult({
+      title: `Hồ Sơ ${typeLabel}: ${finalPersonName} - ${patternTitle}`,
+      personName: finalPersonName,
+      capturedImage: imagePreview || undefined,
+      summary: summaryText,
+      fullContent: result,
+      type: activeMode
+    });
+    setSavedSuccess(true);
+
     // Tự động đọc lời bình tướng pháp
     speakVoice(result);
   };
@@ -788,9 +858,9 @@ export const FaceAndPalmReading: React.FC<FacePalmProps> = ({ onSaveResult, init
               </span>
               <p className="text-xs text-slate-300">
                 {userName ? (
-                  <>Lưu trữ hồ sơ cho: <strong className="text-amber-300">{userName}</strong></>
+                  <>Đang xem hồ sơ của: <strong className="text-amber-300">{userName}</strong> <span className="text-emerald-400 font-semibold">(Tự động lưu vĩnh viễn)</span></>
                 ) : (
-                  'Nhập họ tên để tự động gắn vào ảnh chụp & sổ tay'
+                  'Nhập họ tên để tự động đồng bộ vào toàn bộ hồ sơ & ảnh chụp'
                 )}
               </p>
             </div>
@@ -810,6 +880,39 @@ export const FaceAndPalmReading: React.FC<FacePalmProps> = ({ onSaveResult, init
           </div>
         </div>
       </div>
+
+      {/* Thông báo trạng thái ảnh chụp của hồ sơ đương số */}
+      {userName.trim() && isSavedDossierPhoto && (
+        <div className="max-w-2xl mx-auto bg-emerald-950/40 border border-emerald-400/50 rounded-2xl p-3 px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-emerald-200 shadow-xl backdrop-blur-md">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>✓ Đang nạp ảnh <strong className="text-emerald-300">{activeMode === 'face' ? 'Khuôn mặt' : activeMode === 'palm' ? 'Lòng bàn tay' : 'Toàn thân'}</strong> đã lưu trong hồ sơ của <strong className="text-amber-300">{userName}</strong></span>
+          </div>
+          <button 
+            type="button"
+            onClick={startCamera}
+            className="text-[11px] font-bold px-2.5 py-1 bg-emerald-900/60 hover:bg-emerald-800 text-emerald-200 rounded-lg border border-emerald-500/40 transition shrink-0 self-start sm:self-auto"
+          >
+            Chụp ảnh mới
+          </button>
+        </div>
+      )}
+
+      {userName.trim() && !isSavedDossierPhoto && (
+        <div className="max-w-2xl mx-auto bg-amber-950/40 border border-amber-400/50 rounded-2xl p-3 px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-200 shadow-xl backdrop-blur-md">
+          <div className="flex items-start sm:items-center gap-2.5">
+            <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5 sm:mt-0 animate-pulse" />
+            <span>💡 Hồ sơ của <strong className="text-amber-300">{userName}</strong> chưa lưu ảnh {activeMode === 'face' ? 'khuôn mặt' : activeMode === 'palm' ? 'lòng bàn tay' : 'toàn thân'}. Bạn hãy bấm <strong>Mở Camera</strong> hoặc <strong>Tải ảnh lên</strong> để chụp, hệ thống sẽ tự động lưu vĩnh viễn vào hồ sơ!</span>
+          </div>
+          <button 
+            type="button"
+            onClick={startCamera}
+            className="px-3.5 py-1.5 bg-gradient-to-r from-amber-400 to-yellow-400 hover:brightness-110 text-slate-950 font-black text-xs rounded-xl shadow-lg shrink-0 transition active:scale-95 self-end sm:self-auto"
+          >
+            Mở Camera Chụp
+          </button>
+        </div>
+      )}
 
       {/* Mode Switcher: 3 Tướng Pháp (Mặt, Chỉ Tay, Toàn Thân) */}
       <div className="flex justify-center">
@@ -1043,24 +1146,13 @@ export const FaceAndPalmReading: React.FC<FacePalmProps> = ({ onSaveResult, init
           )}
         </div>
 
-        {/* Nút bật tắt khung mẫu khi camera đang chạy */}
+        {/* Chỉ dẫn khung mẫu khi camera đang chạy */}
         {isCameraActive && (
-          <div className="flex items-center justify-between w-full px-2 mt-2">
-            <span className="text-[11px] text-amber-300/80 font-semibold flex items-center gap-1">
+          <div className="flex items-center justify-center w-full px-2 mt-2">
+            <span className="text-[11px] text-amber-300/80 font-semibold flex items-center gap-1.5 bg-slate-900/80 px-3 py-1 rounded-full border border-slate-800 shadow">
               <Scan className="w-3.5 h-3.5 text-amber-400" />
               <span>Khung căn chỉnh {activeMode === 'palm' ? (handSide === 'left' ? 'Tay Trái' : 'Tay Phải') : activeMode === 'face' ? 'Khuôn Mặt' : 'Toàn Thân'}</span>
             </span>
-            <button
-              type="button"
-              onClick={() => setShowOverlayGuide(!showOverlayGuide)}
-              className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border transition ${
-                showOverlayGuide
-                  ? 'bg-amber-500/20 text-amber-300 border-amber-400/50'
-                  : 'bg-slate-900 text-slate-400 border-slate-800'
-              }`}
-            >
-              {showOverlayGuide ? '👁️ Ẩn khung mẫu' : '👁️ Hiện khung mẫu'}
-            </button>
           </div>
         )}
 
@@ -1116,72 +1208,54 @@ export const FaceAndPalmReading: React.FC<FacePalmProps> = ({ onSaveResult, init
         )}
 
         {/* Action Controls: Camera / Upload / Analyze */}
-        <div className="mt-5 flex flex-wrap items-center justify-center gap-3 w-full">
-          {isCameraActive ? (
-            <>
-              <button
-                onClick={capturePhoto}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-600 text-slate-950 font-extrabold text-sm shadow-lg hover:brightness-110 active:scale-95 transition"
-              >
-                <Camera className="w-4 h-4" />
-                <span>Chụp ảnh này</span>
-              </button>
-              <button
-                onClick={stopCamera}
-                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-semibold transition"
-              >
-                Hủy Camera
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={startCamera}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-900/50 hover:bg-purple-800/60 text-purple-200 border border-purple-500/40 text-xs sm:text-sm font-semibold transition active:scale-95"
-              >
-                <Camera className="w-4 h-4 text-purple-300" />
-                <span>Mở Camera</span>
-              </button>
-
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs sm:text-sm font-semibold transition active:scale-95"
-              >
-                <Upload className="w-4 h-4 text-slate-400" />
-                <span>Tải ảnh lên</span>
-              </button>
-
-              <input
-                type="file"
-                ref={fileInputRef}
-                accept="image/*"
-                className="hidden"
-                onChange={handleFileChange}
-              />
-            </>
-          )}
-
-          {/* Phân tích luận giải */}
-          {imagePreview && !isCameraActive && (
+        {!isCameraActive && (
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-3 w-full">
             <button
-              onClick={handleAnalyze}
-              disabled={loading}
-              className="flex items-center gap-2 px-6 py-2 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-slate-950 font-extrabold text-xs sm:text-sm shadow-xl shadow-amber-500/20 active:scale-95 transition disabled:opacity-50"
+              onClick={startCamera}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-900/50 hover:bg-purple-800/60 text-purple-200 border border-purple-500/40 text-xs sm:text-sm font-semibold transition active:scale-95 shadow"
             >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
-                  <span>Đang soi tướng pháp...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4 text-slate-950" />
-                  <span>Bắt Đầu Luận Giải ({userName.trim() || 'Hữu Duyên Khách'})</span>
-                </>
-              )}
+              <Camera className="w-4 h-4 text-purple-300" />
+              <span>Mở Camera</span>
             </button>
-          )}
-        </div>
+
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs sm:text-sm font-semibold transition active:scale-95 shadow"
+            >
+              <Upload className="w-4 h-4 text-slate-400" />
+              <span>Tải ảnh lên</span>
+            </button>
+
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+
+            {/* Phân tích luận giải */}
+            {imagePreview && (
+              <button
+                onClick={handleAnalyze}
+                disabled={loading}
+                className="flex items-center gap-2 px-6 py-2 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-slate-950 font-extrabold text-xs sm:text-sm shadow-xl shadow-amber-500/20 active:scale-95 transition disabled:opacity-50"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                    <span>Đang soi tướng pháp...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 text-slate-950" />
+                    <span>Bắt Đầu Luận Giải ({userName.trim() || 'Hữu Duyên Khách'})</span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Guidebook Archetypes Selection Box */}
@@ -1424,13 +1498,10 @@ export const FaceAndPalmReading: React.FC<FacePalmProps> = ({ onSaveResult, init
                 </button>
               )}
 
-              <button
-                onClick={handleSave}
-                className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-purple-800 to-indigo-800 hover:brightness-110 text-amber-200 border border-amber-400/50 text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow-lg"
-              >
-                <BookmarkPlus className="w-3.5 h-3.5 text-amber-400" />
-                <span>{savedSuccess ? 'Đã lưu hồ sơ!' : `Lưu hồ sơ (${userName.trim() || 'Đương số'})`}</span>
-              </button>
+              <div className="px-3.5 py-1.5 rounded-xl bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 text-xs font-semibold flex items-center gap-1.5 shadow">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Đã tự động lưu vào Sổ Hồ Sơ</span>
+              </div>
             </div>
           </div>
 

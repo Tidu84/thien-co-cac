@@ -125,3 +125,8 @@ frontend/dist
 # OS files
 .DS_Store
 Thumbs.db
+
+# Security - Android Keystore
+*.keystore
+*.jks
+

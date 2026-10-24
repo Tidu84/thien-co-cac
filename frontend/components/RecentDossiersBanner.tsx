@@ -39,6 +39,7 @@ import {
   Activity
 } from 'lucide-react';
 import { buildTuViProfileAndLifeDossier, CompleteTuViBundle } from '../services/tuViService';
+import { MasterDestinySynthesisModal } from './MasterDestinySynthesisModal';
 
 interface RecentDossiersBannerProps {
   onNavigateTab: (tab: NavTab, subMode?: 'face' | 'palm' | 'body') => void;
@@ -55,6 +56,7 @@ export const RecentDossiersBanner: React.FC<RecentDossiersBannerProps> = ({ onNa
   const [modalTab, setModalTab] = useState<'photos' | 'tamKy' | 'fivePillars' | 'palaces' | 'scores'>('photos');
   const [previewZoomImage, setPreviewZoomImage] = useState<{ url: string; title: string } | null>(null);
   const [isVoiceSpeaking, setIsVoiceSpeaking] = useState(false);
+  const [synthesisDossier, setSynthesisDossier] = useState<UserDossier | null>(null);
 
   // Form thêm hồ sơ mới
   const [newName, setNewName] = useState('');
@@ -342,44 +344,32 @@ export const RecentDossiersBanner: React.FC<RecentDossiersBannerProps> = ({ onNa
                   </span>
                 </div>
 
-                {/* Quick Action Button */}
-                <div className="pt-1 flex items-center gap-1.5">
+                {/* Quick Action Buttons */}
+                <div className="pt-1 flex items-center gap-2">
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleSelectDossier(dossier, 'photos');
+                      setSynthesisDossier(dossier);
                     }}
-                    className="py-1.5 px-2.5 rounded-xl bg-purple-950/70 hover:bg-purple-900 text-purple-200 border border-purple-500/40 text-[11px] font-bold flex items-center justify-center gap-1 transition active:scale-95 shadow"
-                    title="Xem ảnh chụp khuôn mặt và lòng bàn tay"
+                    className="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:brightness-110 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 transition active:scale-95 shadow-md shadow-amber-500/20"
+                    title="Xem Đại Tổng Luận Vận Mệnh Toàn Thư (Tử Vi, Tướng Pháp, Thần Số, Bát Trạch)"
                   >
-                    <Camera className="w-3 h-3 text-purple-300" />
-                    <span>Ảnh & Tướng</span>
+                    <Sparkles className="w-3.5 h-3.5 text-slate-950" />
+                    <span>⭐ Đại Tổng Luận</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleSelectDossier(dossier, 'tamKy');
+                      handleSelectDossier(dossier);
                     }}
-                    className="flex-1 py-1.5 px-2.5 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 text-amber-300 border border-amber-400/40 text-[11px] font-bold flex items-center justify-center gap-1 transition active:scale-95 shadow"
+                    className="py-2 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 hover:border-amber-400/40 text-xs font-bold flex items-center justify-center gap-1.5 transition active:scale-95 shadow"
+                    title="Xem chi tiết toàn bộ hồ sơ (Tướng mạo, Tử Vi, Tam kỳ...)"
                   >
-                    <ScrollText className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Bảng Tử Vi</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleOpenInTuViTab(dossier);
-                    }}
-                    className="py-1.5 px-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-purple-200 border border-purple-500/30 text-[11px] font-semibold flex items-center justify-center gap-1 transition active:scale-95"
-                    title="Mở toàn diện tại Tab Tử Vi Lý Số"
-                  >
-                    <Sparkles className="w-3 h-3 text-purple-300" />
-                    <ArrowRight className="w-3 h-3" />
+                    <Eye className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Chi Tiết</span>
                   </button>
                 </div>
               </div>
@@ -498,6 +488,18 @@ export const RecentDossiersBanner: React.FC<RecentDossiersBannerProps> = ({ onNa
 
             {/* Thanh Tab điều hướng nội dung */}
             <div className="flex flex-wrap items-center gap-2 border-b border-slate-800 pb-2">
+              <button
+                onClick={() => {
+                  if (viewingDossier) {
+                    setSynthesisDossier(viewingDossier);
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:brightness-110 text-slate-950 shadow-md shadow-amber-500/20 active:scale-95 transition"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-slate-950" />
+                <span>⭐ ĐẠI TỔNG LUẬN VẬN MỆNH</span>
+              </button>
+
               <button
                 onClick={() => setModalTab('photos')}
                 className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${
@@ -1119,12 +1121,21 @@ export const RecentDossiersBanner: React.FC<RecentDossiersBannerProps> = ({ onNa
                   type="submit"
                   className="flex-1 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 text-xs font-extrabold shadow-lg transition"
                 >
-                  Lưu & Chọn Ngay
+                  Tạo & Kích Hoạt Hồ Sơ
                 </button>
               </div>
             </form>
           </div>
         </div>
+      )}
+
+      {/* Modal Đại Tổng Luận Vận Mệnh Toàn Thư */}
+      {synthesisDossier && (
+        <MasterDestinySynthesisModal
+          dossier={synthesisDossier}
+          onClose={() => setSynthesisDossier(null)}
+          onNavigateTab={onNavigateTab}
+        />
       )}
 
       {/* Lightbox Phóng To Ảnh */}

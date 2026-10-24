@@ -1,15 +1,50 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TAROT_DECK } from '../constants';
 import { TarotCard } from '../types';
 import { explainTarotWithGemini, scryCrystalBallWithGemini } from '../services/geminiService';
-import { Sparkles, Moon, HelpCircle, BookmarkPlus, Loader2, RefreshCw } from 'lucide-react';
+import { getActiveDossierName } from '../services/dossierService';
+import { Sparkles, Moon, HelpCircle, BookmarkPlus, Loader2, RefreshCw, CheckCircle2 } from 'lucide-react';
 
 interface WesternProps {
-  onSaveResult: (record: { title: string; summary: string; fullContent: string; type: 'tarot' | 'crystal' }) => void;
+  onSaveResult: (record: { title: string; summary: string; fullContent: string; type: 'tarot' | 'crystal'; personName?: string }) => void;
 }
 
 export const WesternDivination: React.FC<WesternProps> = ({ onSaveResult }) => {
   const [subTab, setSubTab] = useState<'tarot' | 'crystal'>('tarot');
+
+  // Đương số đồng bộ từ hồ sơ
+  const [activePersonName, setActivePersonName] = useState<string>(() => {
+    try {
+      return getActiveDossierName() || localStorage.getItem('thien_co_cac_user_name') || '';
+    } catch {
+      return '';
+    }
+  });
+
+  useEffect(() => {
+    const syncActive = (overrideName?: string) => {
+      const name = overrideName || getActiveDossierName() || localStorage.getItem('thien_co_cac_user_name') || '';
+      if (name) setActivePersonName(name);
+    };
+
+    syncActive();
+
+    const handleActiveChange = (e: any) => {
+      const activeName = e.detail?.name || (typeof e.detail === 'string' ? e.detail : null) || getActiveDossierName();
+      syncActive(activeName);
+    };
+
+    const handleDossierUpdated = () => {
+      syncActive();
+    };
+
+    window.addEventListener('thien_co_cac_active_name_changed', handleActiveChange);
+    window.addEventListener('thien_co_cac_dossier_updated', handleDossierUpdated);
+    return () => {
+      window.removeEventListener('thien_co_cac_active_name_changed', handleActiveChange);
+      window.removeEventListener('thien_co_cac_dossier_updated', handleDossierUpdated);
+    };
+  }, []);
 
   // Tarot State
   const [tarotQuestion, setTarotQuestion] = useState('Định hướng công danh và tình cảm sắp tới');
@@ -48,6 +83,18 @@ export const WesternDivination: React.FC<WesternProps> = ({ onSaveResult }) => {
     const aiText = await explainTarotWithGemini(tarotQuestion, cardsForAi);
     setTarotReading(aiText);
     setTarotLoading(false);
+
+    // TỰ ĐỘNG LƯU VÀO SỔ TAY VẬN MỆNH (AUTO-SAVE 100%)
+    const finalPersonName = activePersonName.trim() || 'Hữu Duyên Khách';
+
+    onSaveResult({
+      title: `Tarot 3 Lá: ${picked.map(c => c.card.vietnameseName).join(' • ')}`,
+      personName: finalPersonName,
+      summary: `Hỏi: "${tarotQuestion || 'Thông điệp vận thế'}"`,
+      fullContent: aiText,
+      type: 'tarot'
+    });
+    setSavedSuccess(true);
   };
 
   // Kích hoạt quả cầu thủy tinh
@@ -60,12 +107,26 @@ export const WesternDivination: React.FC<WesternProps> = ({ onSaveResult }) => {
     setCrystalProphecy(prophecy);
     setCrystalLoading(false);
     setTimeout(() => setCrystalGlowing(false), 2000);
+
+    // TỰ ĐỘNG LƯU VÀO SỔ TAY VẬN MỆNH (AUTO-SAVE 100%)
+    const finalPersonName = activePersonName.trim() || 'Hữu Duyên Khách';
+
+    onSaveResult({
+      title: `Thần Dụ Quả Cầu Thủy Tinh`,
+      personName: finalPersonName,
+      summary: `Hỏi: "${crystalQuestion || 'Xin sấm truyền tương lai'}"`,
+      fullContent: prophecy,
+      type: 'crystal'
+    });
+    setSavedSuccess(true);
   };
 
   const handleSaveTarot = () => {
     if (!tarotReading) return;
+    const finalPersonName = activePersonName.trim() || 'Hữu Duyên Khách';
     onSaveResult({
       title: `Tarot 3 Lá: ${selectedCards.map(c => c.card.name).join(' • ')}`,
+      personName: finalPersonName,
       summary: `Hỏi: "${tarotQuestion}"`,
       fullContent: tarotReading,
       type: 'tarot'
@@ -76,8 +137,10 @@ export const WesternDivination: React.FC<WesternProps> = ({ onSaveResult }) => {
 
   const handleSaveCrystal = () => {
     if (!crystalProphecy) return;
+    const finalPersonName = activePersonName.trim() || 'Hữu Duyên Khách';
     onSaveResult({
       title: `Thần Dụ Quả Cầu Thủy Tinh`,
+      personName: finalPersonName,
       summary: `Hỏi: "${crystalQuestion}"`,
       fullContent: crystalProphecy,
       type: 'crystal'
@@ -88,6 +151,24 @@ export const WesternDivination: React.FC<WesternProps> = ({ onSaveResult }) => {
 
   return (
     <div className="space-y-6">
+      {/* Hồ Sơ Đương Số Trải Bài / Chiêm Bái */}
+      {activePersonName && (
+        <div className="max-w-2xl mx-auto bg-gradient-to-r from-purple-950/70 via-slate-900 to-indigo-950/70 border border-purple-500/40 rounded-xl px-4 py-2.5 flex items-center justify-between text-xs text-purple-200 shadow-md">
+          <div className="flex items-center gap-2">
+            <span className="text-amber-400 font-bold flex items-center gap-1.5">
+              <span>🔮</span>
+              <span>Đương số chiêm bái:</span>
+            </span>
+            <strong className="text-amber-300 font-bold bg-slate-950/80 px-2 py-0.5 rounded border border-amber-500/30">
+              {activePersonName}
+            </strong>
+          </div>
+          <span className="text-[11px] text-emerald-400 font-semibold hidden sm:inline">
+            ✓ Kết quả bài Tarot & Thần Dụ tự động lưu vào hồ sơ
+          </span>
+        </div>
+      )}
+
       {/* Sub-tab selection */}
       <div className="flex justify-center">
         <div className="bg-slate-900 p-1.5 rounded-2xl border border-purple-500/30 flex gap-2 shadow-xl">
@@ -210,13 +291,10 @@ export const WesternDivination: React.FC<WesternProps> = ({ onSaveResult }) => {
                   <Sparkles className="w-5 h-5 text-amber-400" />
                   <span>Thông Điệp Của Người Đọc Bài Tarot AI:</span>
                 </h3>
-                <button
-                  onClick={handleSaveTarot}
-                  className="px-3.5 py-1.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-400/50 text-xs font-semibold flex items-center gap-1.5 transition"
-                >
-                  <BookmarkPlus className="w-4 h-4" />
-                  <span>{savedSuccess ? 'Đã lưu!' : 'Lưu lại'}</span>
-                </button>
+                <div className="px-3.5 py-1.5 rounded-xl bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 text-xs font-semibold flex items-center gap-1.5 shadow">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Đã tự động lưu vào Sổ</span>
+                </div>
               </div>
 
               <div className="text-sm text-slate-200 leading-relaxed whitespace-pre-line bg-slate-900/60 p-5 rounded-xl border border-slate-800">
@@ -308,12 +386,10 @@ export const WesternDivination: React.FC<WesternProps> = ({ onSaveResult }) => {
                   <span>✨</span>
                   <span>Lời Sấm Truyền Từ Khối Pha Lê:</span>
                 </span>
-                <button
-                  onClick={handleSaveCrystal}
-                  className="px-3 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/50 text-xs transition"
-                >
-                  {savedSuccess ? 'Đã lưu sấm truyền!' : 'Lưu lại'}
-                </button>
+                <div className="px-3 py-1 rounded-lg bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 text-xs font-semibold flex items-center gap-1.5 shadow">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Đã tự động lưu vào Sổ</span>
+                </div>
               </div>
               <p className="text-sm sm:text-base text-cyan-100 font-serif-title leading-relaxed italic">
                 "{crystalProphecy}"

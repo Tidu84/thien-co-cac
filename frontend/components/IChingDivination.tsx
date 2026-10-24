@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { IChingLine, IChingResult } from '../types';
 import { HEXAGRAMS_MAP } from '../constants';
 import { explainIChingWithGemini } from '../services/geminiService';
-import { Sparkles, Coins, RotateCcw, BookmarkPlus, HelpCircle, Loader2 } from 'lucide-react';
+import { getActiveDossierName } from '../services/dossierService';
+import { Sparkles, Coins, RotateCcw, BookmarkPlus, HelpCircle, Loader2, CheckCircle2 } from 'lucide-react';
 
 interface IChingProps {
   initialQuestion?: string;
-  onSaveResult: (record: { title: string; summary: string; fullContent: string; type: 'iching' }) => void;
+  onSaveResult: (record: { title: string; summary: string; fullContent: string; type: 'iching'; personName?: string }) => void;
 }
 
 export const IChingDivination: React.FC<IChingProps> = ({ initialQuestion = '', onSaveResult }) => {
@@ -17,6 +18,40 @@ export const IChingDivination: React.FC<IChingProps> = ({ initialQuestion = '', 
   const [result, setResult] = useState<IChingResult | null>(null);
   const [loadingAi, setLoadingAi] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  // Đương số đồng bộ từ hồ sơ kích hoạt
+  const [activePersonName, setActivePersonName] = useState<string>(() => {
+    try {
+      return getActiveDossierName() || localStorage.getItem('thien_co_cac_user_name') || '';
+    } catch {
+      return '';
+    }
+  });
+
+  useEffect(() => {
+    const syncActive = (overrideName?: string) => {
+      const name = overrideName || getActiveDossierName() || localStorage.getItem('thien_co_cac_user_name') || '';
+      if (name) setActivePersonName(name);
+    };
+
+    syncActive();
+
+    const handleActiveChange = (e: any) => {
+      const activeName = e.detail?.name || (typeof e.detail === 'string' ? e.detail : null) || getActiveDossierName();
+      syncActive(activeName);
+    };
+
+    const handleDossierUpdated = () => {
+      syncActive();
+    };
+
+    window.addEventListener('thien_co_cac_active_name_changed', handleActiveChange);
+    window.addEventListener('thien_co_cac_dossier_updated', handleDossierUpdated);
+    return () => {
+      window.removeEventListener('thien_co_cac_active_name_changed', handleActiveChange);
+      window.removeEventListener('thien_co_cac_dossier_updated', handleDossierUpdated);
+    };
+  }, []);
 
   // Gieo 1 hào (tương đương 3 đồng xu)
   const tossOneLine = () => {
@@ -107,7 +142,7 @@ export const IChingDivination: React.FC<IChingProps> = ({ initialQuestion = '', 
     const aiText = await explainIChingWithGemini(question, hexInfo.name, lineValues, hexInfo.meaning);
     setLoadingAi(false);
 
-    setResult({
+    const completedRecord = {
       hexagramNumber: hexNumber,
       name: hexInfo.name,
       meaning: hexInfo.meaning,
@@ -116,7 +151,20 @@ export const IChingDivination: React.FC<IChingProps> = ({ initialQuestion = '', 
       lines: completedLines,
       timestamp: new Date().toLocaleString('vi-VN'),
       question: question || "Xin vận thế tổng quan"
+    };
+    setResult(completedRecord);
+
+    // TỰ ĐỘNG LƯU VÀO SỔ TAY VẬN MỆNH (AUTO-SAVE 100%)
+    const finalPersonName = activePersonName.trim() || 'Hữu Duyên Khách';
+
+    onSaveResult({
+      title: `Kinh Dịch: ${hexInfo.name}`,
+      personName: finalPersonName,
+      summary: `Hỏi: "${question || "Xin vận thế tổng quan"}" • ${hexInfo.meaning}`,
+      fullContent: aiText,
+      type: 'iching'
     });
+    setSavedSuccess(true);
   };
 
   const resetIChing = () => {
@@ -127,8 +175,10 @@ export const IChingDivination: React.FC<IChingProps> = ({ initialQuestion = '', 
 
   const handleSave = () => {
     if (!result) return;
+    const finalPersonName = activePersonName.trim() || 'Hữu Duyên Khách';
     onSaveResult({
       title: `Kinh Dịch: ${result.name}`,
+      personName: finalPersonName,
       summary: `Hỏi: "${result.question}" • ${result.meaning}`,
       fullContent: result.aiExplanation,
       type: 'iching'
@@ -140,7 +190,7 @@ export const IChingDivination: React.FC<IChingProps> = ({ initialQuestion = '', 
   return (
     <div className="bg-slate-900/80 border border-amber-500/30 rounded-2xl p-4 sm:p-6 shadow-2xl">
       {/* Title */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-4 mb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-4 mb-4">
         <div>
           <div className="flex items-center gap-2">
             <span className="text-2xl text-amber-400">🪙</span>
@@ -164,6 +214,24 @@ export const IChingDivination: React.FC<IChingProps> = ({ initialQuestion = '', 
           )}
         </div>
       </div>
+
+      {/* Hồ Sơ Đương Số Vấn Quẻ */}
+      {activePersonName && (
+        <div className="mb-4 bg-gradient-to-r from-purple-950/70 via-slate-900 to-indigo-950/70 border border-purple-500/40 rounded-xl px-4 py-2.5 flex items-center justify-between text-xs text-purple-200 shadow-md">
+          <div className="flex items-center gap-2">
+            <span className="text-amber-400 font-bold flex items-center gap-1.5">
+              <span>☯</span>
+              <span>Đương số vấn quẻ:</span>
+            </span>
+            <strong className="text-amber-300 font-bold bg-slate-950/80 px-2 py-0.5 rounded border border-amber-500/30">
+              {activePersonName}
+            </strong>
+          </div>
+          <span className="text-[11px] text-emerald-400 font-semibold hidden sm:inline">
+            ✓ Kết quả quẻ dịch tự động nạp & lưu vào hồ sơ
+          </span>
+        </div>
+      )}
 
       {/* Question Input */}
       <div className="mb-6">
@@ -333,13 +401,10 @@ export const IChingDivination: React.FC<IChingProps> = ({ initialQuestion = '', 
               </p>
             </div>
 
-            <button
-              onClick={handleSave}
-              className="px-4 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400/50 text-xs font-semibold flex items-center gap-1.5 transition"
-            >
-              <BookmarkPlus className="w-4 h-4" />
-              <span>{savedSuccess ? 'Đã lưu vào Sổ!' : 'Lưu lại quẻ'}</span>
-            </button>
+            <div className="px-3.5 py-1.5 rounded-xl bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 text-xs font-semibold flex items-center gap-1.5 shadow">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Đã tự động lưu vào Sổ</span>
+            </div>
           </div>
 
           {/* Original Judgement */}
