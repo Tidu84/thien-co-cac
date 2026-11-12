@@ -9,10 +9,12 @@ interface Character3DProps {
   onSelectNo: () => void;
   onCharacterClick?: () => void;
   currentStyle?: FortuneTellerStyle;
+  characterName?: string;
+  personaGender?: 'male' | 'female';
   onStyleChange?: (style: FortuneTellerStyle) => void;
 }
 
-export type FortuneTellerStyle = 'manga_cool' | 'hooded_green' | 'turban_tarot' | 'crystal_maiden' | 'crimson_sorceress';
+export type FortuneTellerStyle = 'manga_cool' | 'female_oracle' | 'hooded_green' | 'turban_tarot' | 'crystal_maiden' | 'crimson_sorceress';
 
 export const Character3D: React.FC<Character3DProps> = ({ 
   isSpeaking, 
@@ -22,11 +24,15 @@ export const Character3D: React.FC<Character3DProps> = ({
   onSelectNo, 
   onCharacterClick,
   currentStyle: controlledStyle,
+  characterName: providedCharacterName,
+  personaGender: providedPersonaGender,
   onStyleChange
 }) => {
   // Phong cách mặc định: Thầy bói Manga ngầu lòi (kính râm tròn, quạt càn khôn/tẩu thuốc, nụ cười bí hiểm)
   const [internalStyle, setInternalStyle] = useState<FortuneTellerStyle>('manga_cool');
   const currentStyle = controlledStyle || internalStyle;
+  const characterName = providedCharacterName ?? (currentStyle === 'female_oracle' ? 'Nguyệt Cơ Tiên Nương' : 'Thiên Cơ Chân Nhân');
+  const personaGender = providedPersonaGender ?? (currentStyle === 'manga_cool' ? 'male' : 'female');
 
   const handleSelectStyle = (style: FortuneTellerStyle) => {
     setInternalStyle(style);
@@ -64,33 +70,30 @@ export const Character3D: React.FC<Character3DProps> = ({
 
   // Bộ mô phỏng khẩu hình miệng sống động theo ngữ điệu phát âm
   useEffect(() => {
+    if (!isSpeaking) {
+      setMouthState({ openY: 0, openX: 0, jawDrop: 0, browLift: 0 });
+      return;
+    }
+
     let animId: number;
     let step = 0;
+    let lastUpdate = 0;
 
-    const updateLipSync = () => {
-      if (isSpeaking) {
+    const updateLipSync = (now: number) => {
+      // Update the speaking animation 10 times per second to reduce repeated rendering.
+      if (now - lastUpdate >= 100) {
+        lastUpdate = now;
         step += 0.32;
         const wave1 = Math.abs(Math.sin(step));
         const wave2 = Math.abs(Math.sin(step * 1.7 + 0.5));
         const wave3 = Math.sin(step * 0.8);
-
         const openHeight = wave1 * 0.75 + wave2 * 0.35;
-        const openWidth = wave3 * 0.3;
-        const jaw = openHeight * 8;
-        const brow = Math.sin(step * 0.5) * 3;
 
         setMouthState({
           openY: Math.min(Math.max(openHeight, 0.15), 1.1),
-          openX: openWidth,
-          jawDrop: jaw,
-          browLift: brow
-        });
-      } else {
-        setMouthState({
-          openY: 0,
-          openX: 0,
-          jawDrop: 0,
-          browLift: 0
+          openX: wave3 * 0.3,
+          jawDrop: openHeight * 8,
+          browLift: Math.sin(step * 0.5) * 3
         });
       }
       animId = requestAnimationFrame(updateLipSync);
@@ -173,6 +176,16 @@ export const Character3D: React.FC<Character3DProps> = ({
       orbColor: '#fde047',
       orbGlow: 'rgba(239, 68, 68, 0.75)',
       description: 'Áo choàng đỏ rực, kết ấn càn khôn bói toán sắc sảo'
+    },
+    female_oracle: {
+      name: 'Nguyệt Cơ Tiên Nương',
+      hoodColor: '#4c1d68',
+      hoodInner: '#170d2b',
+      trimColor: '#f0abfc',
+      eyeColor: '#c084fc',
+      orbColor: '#a5f3fc',
+      orbGlow: 'rgba(216, 180, 254, 0.85)',
+      description: 'Tiên nương tóc đen dài, trâm trăng bạc và khăn voan tím khói huyền bí'
     }
   };
 
@@ -187,45 +200,50 @@ export const Character3D: React.FC<Character3DProps> = ({
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       onClick={onCharacterClick}
+      onTouchEnd={(e) => {
+        if ((e.target as HTMLElement)?.closest('button')) return;
+        onCharacterClick?.();
+      }}
       style={{ perspective: '1200px' }}
-      className="relative w-full h-[430px] sm:h-[480px] flex items-center justify-center select-none cursor-pointer group"
-      title="Thầy Bói Giang Hồ: Đang đàm đạo và nói chuyện với bạn!"
+      className="relative w-full min-h-[320px] max-h-[70vh] py-3 sm:py-6 flex items-center justify-center select-none cursor-pointer group"
+      title={`${characterName} đang đàm đạo với bạn`}
     >
       {/* 1. HÀO QUANG VŨ TRỤ BÁT QUÁI SAU LƯNG THẦY BÓI */}
       <div 
         style={{
           boxShadow: `0 0 75px ${currentCfg.orbGlow}`
         }}
-        className="absolute w-72 h-72 sm:w-80 sm:h-80 rounded-full bg-gradient-to-tr from-purple-900/30 via-amber-500/10 to-indigo-900/30 blur-2xl pointer-events-none transition-all duration-700 animate-pulse"
+        className="absolute w-[80%] max-w-[320px] aspect-square rounded-full bg-gradient-to-tr from-purple-900/30 via-amber-500/10 to-indigo-900/30 blur-2xl pointer-events-none transition-all duration-700 animate-pulse"
       />
 
       {/* VÒNG TRÒN MA THUẬT QUAY CHẬM */}
-      <div className="absolute w-60 h-60 sm:w-64 sm:h-64 rounded-full border-2 border-dashed border-amber-400/30 animate-spin duration-[24000ms] pointer-events-none flex items-center justify-center">
-        <div className="w-52 h-52 rounded-full border border-purple-500/30" />
+      <div className="absolute w-[70%] max-w-[280px] aspect-square rounded-full border-2 border-dashed border-amber-400/30 animate-spin duration-[24000ms] pointer-events-none flex items-center justify-center">
+        <div className="w-[85%] h-[85%] rounded-full border border-purple-500/30" />
       </div>
 
-      {/* 2. NHÂN VẬT THẦY BÓI 3D PARALLAX */}
+      {/* 2. NHÂN VẬT THẦY BÓI 3D PARALLAX - TỰ ĐỘNG CĂN CHỈNH TỶ LỆ THEO MÀN HÌNH MỞ */}
       <div 
         style={{
           transform: `rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg)`,
           transition: tilt.rx === 0 ? 'transform 0.5s ease-out' : 'transform 0.08s ease-out'
         }}
-        className="relative w-72 h-84 sm:w-80 sm:h-96 flex flex-col items-center justify-center filter drop-shadow-2xl"
+        className="relative w-[85%] max-w-[280px] sm:max-w-[340px] md:max-w-[380px] aspect-[3/4] max-h-[58vh] flex flex-col items-center justify-center filter drop-shadow-2xl"
       >
-        {currentStyle === 'manga_cool' ? (
-          /* TẠO HÌNH MANHWA / WEBTTOON CAO CẤP VỚI PARALLAX 3D, LÀN KHÓI TIÊN KHÍ VÀ LÁ BÀI BAY LƠ LỬNG */
-          <div className="relative w-full h-full rounded-3xl overflow-hidden border-2 border-amber-400/60 shadow-2xl bg-slate-950 group/art">
-            {/* Ảnh tranh vẽ Manhwa kiệt tác cao cấp */}
+        {currentStyle === 'manga_cool' || currentStyle === 'female_oracle' ? (
+          /* TẠO HÌNH TRUYỆN TRANH MANGA / TEPPI SỐNG ĐỘNG VỚI PARALLAX 3D & SƯƠNG KHÓI TIÊN KHÍ */
+          <div className={`relative w-full h-full rounded-3xl overflow-hidden border-2 shadow-2xl bg-slate-950 group/art ${
+            currentStyle === 'female_oracle' ? 'border-fuchsia-400/60' : 'border-amber-400/60'
+          }`}>
             <img 
-              src="/assets/manga_master.jpg" 
-              alt="Thầy Bói Manga Đệ Nhất" 
-              className="w-full h-full object-cover object-top scale-105 group-hover/art:scale-110 transition-transform duration-700"
+              src={currentStyle === 'female_oracle' ? '/assets/nguyet_co_teppi.jpg' : '/assets/manga_master.jpg'} 
+              alt={characterName} 
+              className="w-full h-full object-cover object-center sm:object-top group-hover/art:scale-105 transition-transform duration-700"
             />
 
             {/* LỚP SƯƠNG KHÓI MỜ MỜ TRÔI LƠ LỬNG (MYSTIC FOG AURA) */}
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/15 to-transparent pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/10 to-transparent pointer-events-none" />
             
-            {/* Làn sương khói linh khí trôi dạt cuộn tròn bên dưới chân - CHUYỂN ĐỘNG TRÔI TỰ NHIÊN MƯỢT MÀ */}
+            {/* Làn sương khói linh khí trôi dạt cuộn tròn bên dưới chân */}
             <div className="absolute -bottom-8 -inset-x-10 h-36 bg-gradient-to-t from-cyan-500/20 via-purple-500/12 to-transparent blur-xl fog-anim-1 pointer-events-none" />
             
             {/* Làn khói trắng sương mù huyền ảo bay dạt từ trái qua phải */}
@@ -242,19 +260,34 @@ export const Character3D: React.FC<Character3DProps> = ({
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-8 pointer-events-none flex flex-col items-center">
                 <span className="w-16 h-16 rounded-full border border-amber-300/40 animate-pulse opacity-75" />
                 <span className="px-3 py-1 mt-2 bg-gradient-to-r from-amber-500/90 to-yellow-400/90 text-slate-950 text-[11px] font-extrabold rounded-full shadow-lg shadow-amber-500/50 backdrop-blur-sm">
-                  Thiên Cơ Chân Nhân đang cất lời...
+                  {characterName} đang cất lời...
                 </span>
               </div>
             )}
 
-            {/* LÁ BÀI TAROT VÀ ĐỒNG XU LƠ LỬNG PHÍA TRƯỚC */}
-            <div className="absolute top-3 left-3 px-2 py-1 bg-slate-950/80 backdrop-blur-md rounded-lg border border-amber-400/40 flex items-center gap-1.5 shadow">
-              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-              <span className="text-[10px] font-bold text-amber-300">Thiên Cơ Chân Nhân</span>
+            {/* Nhãn tên nhân vật gọn đẹp góc trên */}
+            <div className="absolute top-3 left-3 px-2.5 py-1 bg-slate-950/80 backdrop-blur-md rounded-lg border border-amber-400/40 flex items-center gap-1.5 shadow">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <span className="text-[10px] font-bold text-amber-300">{characterName}</span>
             </div>
 
             <div className="absolute top-3 right-3 px-2 py-1 bg-slate-950/80 backdrop-blur-md rounded-lg border border-cyan-400/40 flex items-center gap-1 shadow text-[10px] text-cyan-300 font-bold">
-              <span>☯ Bát Quái</span>
+              <span>{currentStyle === 'female_oracle' ? '🌙 Nguyệt Đài' : '☯ Bát Quái'}</span>
+            </div>
+
+            {/* Nút nghe thầy bói đọc rõ ràng khi chạm trên điện thoại */}
+            <div className="absolute bottom-3 inset-x-3 flex justify-center z-20">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCharacterClick?.();
+                }}
+                className="px-3.5 py-1.5 rounded-full bg-slate-950/90 backdrop-blur-md border border-amber-400/60 hover:border-amber-300 text-[11px] text-amber-200 font-bold shadow-lg shadow-amber-500/20 active:scale-95 transition flex items-center gap-1.5"
+              >
+                <Volume2 className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+                <span>Chạm để nghe {characterName} đọc</span>
+              </button>
             </div>
           </div>
         ) : (
@@ -307,14 +340,14 @@ export const Character3D: React.FC<Character3DProps> = ({
 
           {/* TÓC RỦ HAI BÊN VAI */}
           <path
-            d="M 125 180 Q 95 260 115 340 Q 128 280 135 220 Z"
-            fill="#181124"
+            d={currentStyle === 'female_oracle' ? 'M 125 170 Q 82 255 105 405 Q 122 360 135 220 Z' : 'M 125 180 Q 95 260 115 340 Q 128 280 135 220 Z'}
+            fill={currentStyle === 'female_oracle' ? '#24112f' : '#181124'}
             stroke="#090514"
             strokeWidth="3.5"
           />
           <path
-            d="M 275 180 Q 305 260 285 340 Q 272 280 265 220 Z"
-            fill="#181124"
+            d={currentStyle === 'female_oracle' ? 'M 275 170 Q 318 255 295 405 Q 278 360 265 220 Z' : 'M 275 180 Q 305 260 285 340 Q 272 280 265 220 Z'}
+            fill={currentStyle === 'female_oracle' ? '#24112f' : '#181124'}
             stroke="#090514"
             strokeWidth="3.5"
           />
@@ -359,6 +392,16 @@ export const Character3D: React.FC<Character3DProps> = ({
                 <circle cx="18" cy="29" r="6" fill="#f59e0b" />
               </g>
             </g>
+          ) : currentStyle === 'female_oracle' ? (
+            <g id="moonOracleHeadpiece">
+              <path d="M 105 155 C 110 68, 155 38, 200 42 C 250 38, 290 72, 295 155 L 270 188 C 270 110, 245 78, 200 78 C 155 78, 130 110, 130 188 Z" fill="#24112f" stroke="#f0abfc" strokeWidth="4" />
+              <path d="M 118 118 Q 200 76 282 118 L 272 139 Q 200 108 128 142 Z" fill="#6b3b82" stroke="#f5d0fe" strokeWidth="3" />
+              <path d="M 126 136 C 104 211, 115 302, 145 365 M 274 136 C 296 211, 285 302, 255 365" fill="none" stroke="#e9d5ff" strokeWidth="7" strokeOpacity="0.55" />
+              <path d="M 200 55 A 22 22 0 1 0 220 82 A 18 18 0 1 1 200 55 Z" fill="#fef3c7" stroke="#f5d0fe" strokeWidth="2" />
+              <circle cx="200" cy="103" r="6" fill="#a5f3fc" stroke="#fef3c7" strokeWidth="2" />
+              <path d="M 132 222 Q 112 245 132 267 M 268 222 Q 288 245 268 267" fill="none" stroke="#f0abfc" strokeWidth="4" />
+              <circle cx="132" cy="270" r="5" fill="#a5f3fc" /><circle cx="268" cy="270" r="5" fill="#a5f3fc" />
+            </g>
           ) : (
             <g id="mysticHood">
               <path
@@ -378,6 +421,13 @@ export const Character3D: React.FC<Character3DProps> = ({
           )}
 
           {/* LỚP 2: KHUÔN MẶT THẦY BÓI TRUYỆN TRANH */}
+          {currentStyle === 'female_oracle' && (
+            <g id="moonOracleDetails">
+              <ellipse cx="155" cy="226" rx="13" ry="5" fill="#f472b6" opacity="0.28" />
+              <ellipse cx="245" cy="226" rx="13" ry="5" fill="#f472b6" opacity="0.28" />
+              <path d="M 146 192 Q 165 177 184 190 M 216 190 Q 235 177 254 192" fill="none" stroke="#7e22ce" strokeWidth="3" strokeLinecap="round" />
+            </g>
+          )}
           <g id="characterFace">
             <path
               d={`M 148 180 C 148 235, 175 ${260 + mouthState.jawDrop * 0.5}, 200 ${268 + mouthState.jawDrop * 0.7} C 225 ${260 + mouthState.jawDrop * 0.5}, 252 235, 252 180 C 252 140, 225 132, 200 132 C 175 132, 148 140, 148 180 Z`}
@@ -659,43 +709,6 @@ export const Character3D: React.FC<Character3DProps> = ({
         </svg>
         )}
       </div>
-
-      {/* 3. BẢNG HAI Ô LỰA CHỌN THÂM SÂU: GỌN GÀNG, KHÔNG CHE MẶT, NỀN XUYÊN THẤU GLASSMORPHISM */}
-      {userChoice === null && (
-        <div 
-          onClick={(e) => e.stopPropagation()}
-          className="absolute right-1 sm:right-2 bottom-14 z-30 w-[170px] sm:w-[185px] bg-slate-950/65 backdrop-blur-xl p-2.5 rounded-xl border border-amber-400/70 shadow-2xl shadow-purple-950/60 cursor-default transition-all hover:scale-[1.02]"
-        >
-          <div className="flex items-center gap-1 text-amber-300 font-extrabold text-[10px] mb-1 leading-tight">
-            <Sparkles className="w-3 h-3 text-amber-400 flex-shrink-0 animate-pulse" />
-            <span>Cao nhân cất lời:</span>
-          </div>
-          
-          <p className="text-[10px] text-slate-200 leading-snug mb-2 italic">
-            "Có điều trăn trở trong lòng chưa tỏ sao?"
-          </p>
-
-          {/* 2 NÚT ĐỐI THOẠI VỚI CAO NHÂN */}
-          <div className="space-y-1.5">
-            <button
-              onClick={onSelectYes}
-              className="w-full py-1.5 px-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-extrabold text-[10.5px] leading-tight flex items-center justify-center gap-1 shadow-sm shadow-emerald-500/30 active:scale-95 transition"
-            >
-              <CheckCircle2 className="w-3 h-3 text-slate-950 flex-shrink-0" />
-              <span>Nhờ tiên sinh chỉ điểm</span>
-            </button>
-
-            <button
-              onClick={onSelectNo}
-              className="w-full py-1.5 px-2 rounded-lg bg-slate-900/90 hover:bg-slate-800 text-rose-300 font-bold text-[10px] leading-tight flex items-center justify-center gap-1 border border-rose-500/30 active:scale-95 transition"
-            >
-              <XCircle className="w-3 h-3 text-rose-400 flex-shrink-0" />
-              <span>Tiện đường dạo chơi thôi</span>
-            </button>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 };

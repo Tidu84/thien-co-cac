@@ -13,6 +13,8 @@
     "@capacitor/cli": "^8.5.3",
     "@capacitor/core": "^8.5.3",
     "@google/genai": "latest",
+    "@supabase/supabase-js": "^2.118.0",
+    "firebase": "^13.1.0",
     "framer-motion": "latest",
     "lucide-react": "latest",
     "react": "latest",

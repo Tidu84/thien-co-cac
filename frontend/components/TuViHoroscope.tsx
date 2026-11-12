@@ -1,11 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useAppVoice } from '../contexts/VoiceContext';
 import { TuViProfile, TuViPalace, NavTab } from '../types';
-import { 
-  PALACES, 
-  TERRESTRIAL_BRANCHES, 
-  calculateMenhThanPalaces, 
-  calculateCuc 
-} from '../constants';
+import { TERRESTRIAL_BRANCHES } from '../constants';
+import { calculateTuViChart } from '../services/tuviEngine';
 import { convertSolar2Lunar, convertLunar2Solar, LunarDateResult } from '../services/lunarCalendar';
 import { analyzeTuViWithGemini, askTuViDeepDiveQuestion } from '../services/geminiService';
 import { 
@@ -15,6 +12,7 @@ import {
 } from '../services/dossierService';
 import { buildTuViProfileAndLifeDossier } from '../services/tuViService';
 import { MasterDestinySynthesisModal } from './MasterDestinySynthesisModal';
+import { BirthDateSelector } from './BirthDateSelector';
 import { 
   Sparkles, 
   BookmarkPlus, 
@@ -59,10 +57,16 @@ interface ParsedTuViSections {
   congDanh: string;
   tinhDuyen: string;
   vanHan: string;
+  daiVanTien: string;
+  daiVanDuongThoi: string;
+  daiVanBuocNgoat: string;
+  tieuVan: string;
+  hoaGiai: string;
   nhanXet: string;
 }
 
 export const TuViHoroscope: React.FC<TuViProps> = ({ onSaveResult, onNavigateTab }) => {
+  const { speak, stopSpeaking: stopAppSpeaking } = useAppVoice();
   const [calendarMode, setCalendarMode] = useState<'solar' | 'lunar'>('solar');
 
   // Mặc định mẫu 10/10/1984 Giáp Tý (Hải Trung Kim)
@@ -116,55 +120,39 @@ export const TuViHoroscope: React.FC<TuViProps> = ({ onSaveResult, onNavigateTab
 
   const askQuestionScript = "Bạn sinh ngày Dương lịch hay Âm lịch? Hãy chọn bên dưới, ta sẽ tự động chuyển đổi ngày sóc, tháng nhuận và tính Can Chi chuẩn xác để an sao lá số cho bạn nhé!";
 
-  // Phát âm giọng thầy bói
-  const speakVoice = (text: string, sectionKey?: string) => {
-    if (!('speechSynthesis' in window)) return;
-    try {
-      window.speechSynthesis.cancel();
+  // Phát âm giọng thầy bói qua bộ quản lý dùng chung toàn ứng dụng.
+  const speakVoice = (text: string, sectionKey?: string, voiceGender?: 'female' | 'male') => {
+    const cleanVoiceText = text
+      .replace(/\[\/?(THAY_PHAN|BAN_MENH|CONG_DANH|TINH_DUYEN|VAN_HAN|NHAN_XET)\]/g, ' ')
+      .replace(/[*#_~🪙📜👁️🃏🔮✨☯👤🌸👉❓\n]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
 
-      if (window.speechSynthesis.paused) {
-        window.speechSynthesis.resume();
-      }
-
-      const cleanVoiceText = text
-        .replace(/\[\/?(THAY_PHAN|BAN_MENH|CONG_DANH|TINH_DUYEN|VAN_HAN|NHAN_XET)\]/g, ' ')
-        .replace(/[*#_~🪙📜👁️🃏🔮✨☯👤🌸👉❓\n]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-
-      const utterance = new SpeechSynthesisUtterance(cleanVoiceText);
-      const voices = window.speechSynthesis.getVoices();
-      const viVoice = voices.find(v => v.lang.toLowerCase().includes('vi') || v.lang.toLowerCase().includes('vie'));
-      if (viVoice) utterance.voice = viVoice;
-      utterance.lang = 'vi-VN';
-      utterance.rate = 1.0;
-      utterance.pitch = 1.15;
-
-      utterance.onstart = () => {
+    return speak(cleanVoiceText, {
+      lang: 'vi-VN', tone: 'mystic', voiceGender,
+      onStart: () => {
         setIsVoiceSpeaking(true);
         if (sectionKey) setCurrentlySpeakingSection(sectionKey);
-      };
-      utterance.onend = () => {
+      },
+      onEnd: () => {
         setIsVoiceSpeaking(false);
         setCurrentlySpeakingSection(null);
-      };
-      utterance.onerror = () => {
+      },
+      onStop: () => {
         setIsVoiceSpeaking(false);
         setCurrentlySpeakingSection(null);
-      };
-
-      window.speechSynthesis.speak(utterance);
-    } catch (e) {
-      console.warn("Speech error:", e);
-    }
+      },
+      onError: () => {
+        setIsVoiceSpeaking(false);
+        setCurrentlySpeakingSection(null);
+      }
+    });
   };
 
   const stopVoice = () => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      setIsVoiceSpeaking(false);
-      setCurrentlySpeakingSection(null);
-    }
+    stopAppSpeaking();
+    setIsVoiceSpeaking(false);
+    setCurrentlySpeakingSection(null);
   };
 
   // Tự động chuyển đổi Âm - Dương
@@ -200,18 +188,9 @@ export const TuViHoroscope: React.FC<TuViProps> = ({ onSaveResult, onNavigateTab
     }
   };
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      speakVoice(askQuestionScript);
-    }, 400);
-
-    return () => {
-      clearTimeout(timer);
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
-    };
-  }, []);
+  useEffect(() => () => {
+    stopAppSpeaking();
+  }, [stopAppSpeaking]);
 
   // Tự động đồng bộ và điền thông tin khi người dùng đổi hồ sơ trên thanh điều hướng hoặc banner
   useEffect(() => {
@@ -239,11 +218,27 @@ export const TuViHoroscope: React.FC<TuViProps> = ({ onSaveResult, onNavigateTab
               setAstronomyData(conv);
             }
           }
+        } else {
+          // Hồ sơ CHƯA có ngày tháng năm sinh: Tuyệt đối KHÔNG tự động an sao hoặc lập lá số!
+          setPalaces([]);
+          setProfileSummary(null);
+          setReadingResult('');
+          setParsedSections(null);
+          setHasAutoFilled(false);
+          return;
         }
 
         // Tự động lập bảng lá số 12 cung & luận giải bản mệnh cả đời ngay lập tức
         try {
           const bundle = buildTuViProfileAndLifeDossier(matched);
+          if (!bundle) {
+            setPalaces([]);
+            setProfileSummary(null);
+            setReadingResult('');
+            setParsedSections(null);
+            setHasAutoFilled(false);
+            return;
+          }
           const prof = bundle.profile || bundle.profileSummary;
           setPalaces(bundle.palaces || []);
           setProfileSummary(prof);
@@ -333,6 +328,11 @@ export const TuViHoroscope: React.FC<TuViProps> = ({ onSaveResult, onNavigateTab
       congDanh: extract('CONG_DANH', 'Sự nghiệp thăng hoa khi làm việc có tổ chức, tiền tài tích lũy vững bền theo thời gian.'),
       tinhDuyen: extract('TINH_DUYEN', 'Đường tình cảm ban đầu trải qua thử thách để thấu hiểu, hậu vận vợ chồng hòa thuận, đồng lòng xây dựng cơ nghiệp.'),
       vanHan: extract('VAN_HAN', 'Vận khí năm nay có bước chuyển mình tích cực. Cần chú ý giữ hòa khí và kiểm tra kỹ giấy tờ đầu tư.'),
+      daiVanTien: extract('DAI_VAN_TIEN', 'Giai đoạn đầu đời thiên về học hỏi và tích lũy kinh nghiệm.'),
+      daiVanDuongThoi: extract('DAI_VAN_DUONG_THOI', 'Giai đoạn hiện tại phù hợp củng cố nền tảng và ưu tiên mục tiêu dài hạn.'),
+      daiVanBuocNgoat: extract('DAI_VAN_BUOC_NGOAT', 'Một chặng đường về sau có thể mở rộng khi đã chuẩn bị nguồn lực.'),
+      tieuVan: extract('TIEU_VAN', 'Trong 12-24 tháng tới, hãy chủ động với cơ hội phù hợp và cân nhắc kỹ các quyết định tài chính, sức khỏe, quan hệ.'),
+      hoaGiai: extract('HOA_GIAI', 'Lập kế hoạch vừa sức, chăm sóc sức khỏe và kiên trì với lựa chọn có trách nhiệm.'),
       nhanXet: extract('NHAN_XET', 'Thầy bói nhận xét: Đương số có phúc khí tiềm tàng. Lấy nhẫn nhịn và thiện tâm làm gốc thì trăm sự đều thành cát lợi.')
     };
   };
@@ -340,37 +340,44 @@ export const TuViHoroscope: React.FC<TuViProps> = ({ onSaveResult, onNavigateTab
   // LẬP LÁ SỐ VÀ BÌNH GIẢI
   const handleGenerateChart = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+
+    const trimmedName = fullName.trim();
+    if (!trimmedName || trimmedName === 'Khách Vãng Lai' || trimmedName === 'Hồ sơ trống') {
+      alert("⚠️ Vui lòng nhập đầy đủ Họ và Tên của đương số trước khi an sao xem bói!");
+      return;
+    }
+
+    const checkY = calendarMode === 'solar' ? solarYear : lunarYear;
+    const checkM = calendarMode === 'solar' ? solarMonth : lunarMonth;
+    const checkD = calendarMode === 'solar' ? solarDay : lunarDay;
+    if (!checkY || !checkM || !checkD) {
+      alert("⚠️ Vui lòng chọn đầy đủ Ngày, Tháng và Năm sinh trước khi an sao xem bói!");
+      return;
+    }
+
     setLoading(true);
 
-    const currentConv = astronomyData || convertSolar2Lunar(solarDay, solarMonth, solarYear);
-    const solarStr = `${solarYear}-${String(solarMonth).padStart(2, '0')}-${String(solarDay).padStart(2, '0')}`;
-    const lunarStr = `${currentConv.lunarDay}/${currentConv.lunarMonth}/${currentConv.lunarYear}${currentConv.isLeap ? ' (Nhuận)' : ''}`;
-
-    const hourIdx = getHourBranchIndex(birthHour);
-    const { cungMenh, cungThan, menhBranchIndex } = calculateMenhThanPalaces(currentConv.lunarMonth, hourIdx);
-    const calculatedCuc = calculateCuc(currentConv.lunarYear, menhBranchIndex);
-
-    const samplePalaces: TuViPalace[] = PALACES.map((pName, idx) => {
-      const palaceBranchIdx = (menhBranchIndex + idx) % 12;
-      const branchName = TERRESTRIAL_BRANCHES[palaceBranchIdx];
-      const luck = 70 + ((currentConv.lunarYear + idx * 7 + currentConv.lunarDay) % 28);
-      
-      const starSets = [
-        ["Tử Vi (Miếu)", "Thiên Phủ (Vượng)", "Hóa Khoa", "Tả Phụ"],
-        ["Vũ Khúc (Vượng)", "Thiên Tướng (Đắc)", "Văn Xương", "Thiên Khôi"],
-        ["Thái Dương (Miếu)", "Cự Môn (Hãm)", "Hóa Lộc", "Lộc Tồn"],
-        ["Liêm Trinh (Đắc)", "Thất Sát (Vượng)", "Thiên Mã", "Long Trì"],
-        ["Thiên Đồng (Vượng)", "Thiên Lương (Miếu)", "Hóa Quyền", "Phượng Các"],
-        ["Thái Âm (Miếu)", "Hóa Kỵ", "Hữu Bật", "Thiên Việt"]
-      ];
-
-      return {
-        name: pName,
-        stars: starSets[idx % starSets.length],
-        luckScore: luck,
-        description: `Tọa thủ tại cung ${branchName}, đắc hội cát tinh chủ quản.`
-      };
-    });
+    let chart;
+    try {
+      chart = calculateTuViChart({
+        calendarType: calendarMode,
+        day: calendarMode === 'solar' ? solarDay : lunarDay,
+        month: calendarMode === 'solar' ? solarMonth : lunarMonth,
+        year: calendarMode === 'solar' ? solarYear : lunarYear,
+        isLeapMonth,
+        birthHour,
+        gender,
+      });
+    } catch (error) {
+      setLoading(false);
+      window.alert(error instanceof Error ? error.message : 'Không thể lập lá số từ thông tin đã nhập.');
+      return;
+    }
+    const { cungMenh, cungThan, cuc: calculatedCuc } = chart;
+    const calculatedPalaces: TuViPalace[] = chart.palaces;
+    const currentConv = convertSolar2Lunar(chart.solarDate.day, chart.solarDate.month, chart.solarDate.year);
+    const solarStr = `${chart.solarDate.year}-${String(chart.solarDate.month).padStart(2, '0')}-${String(chart.solarDate.day).padStart(2, '0')}`;
+    const lunarStr = `${chart.lunarDate.day}/${chart.lunarDate.month}/${chart.lunarDate.year}${chart.lunarDate.isLeap ? ' (Nhuận)' : ''}`;
 
     const summary: TuViProfile = {
       fullName,
@@ -389,7 +396,7 @@ export const TuViHoroscope: React.FC<TuViProps> = ({ onSaveResult, onNavigateTab
       cungThan: cungThan
     };
 
-    setPalaces(samplePalaces);
+    setPalaces(calculatedPalaces);
     setProfileSummary(summary);
     setHasAutoFilled(true);
 
@@ -417,7 +424,9 @@ export const TuViHoroscope: React.FC<TuViProps> = ({ onSaveResult, onNavigateTab
       calculatedCuc,
       currentConv.canChiDay,
       currentConv.canChiMonth,
-      currentConv.canChiYear
+      currentConv.canChiYear,
+      calculatedPalaces.map((palace) => `${palace.name}: ${palace.stars.join(', ')}`).join(' • '),
+      calculatedPalaces
     );
 
     setReadingResult(aiAnalysis);
@@ -690,6 +699,12 @@ export const TuViHoroscope: React.FC<TuViProps> = ({ onSaveResult, onNavigateTab
   const remediesList = profileSummary ? getRemediesList(profileSummary.menhNguHanh, profileSummary.canChiYear) : [];
 
   const lifeDossier = profileSummary ? generateLifeDestinyDossier(profileSummary) : null;
+  const forecastYear = new Date().getFullYear();
+  const nextForecastYear = forecastYear + 1;
+  const approximateAge = profileSummary ? forecastYear - Number(profileSummary.solarDate.slice(0, 4)) : null;
+  const futureFortuneSpeech = profileSummary && parsedSections
+    ? `${gender === 'nam' ? 'Về vận hạn sắp tới của huynh, tinh tú báo hiệu...' : 'Về thời vận của nàng trong giai đoạn này, có ba điều cần ghi tâm khắc cốt...'} ${parsedSections.tieuVan} ${parsedSections.hoaGiai}`
+    : '';
 
   const dossierSpeechText = profileSummary && lifeDossier
     ? `Bản lý giải bản mệnh cả đời cho đương số ${profileSummary.fullName}, tuổi ${profileSummary.canChiYear}, nạp âm ${profileSummary.menhNguHanh}: Tiền vận từ nhỏ đến 30 tuổi là lúc trui rèn bản lĩnh, học hỏi và tích lũy căn cơ. Trung vận từ 31 đến 55 tuổi là thời kỳ hoàng kim, bứt phá công danh và đại phát tài lộc. Hậu vận từ 56 tuổi trở đi an hưởng viên mãn phúc đức, con cháu hiển đạt vinh hoa. Lời khuyên vàng của thầy bói: Đức năng thắng số, hiếu thảo cha mẹ và làm việc thiện là phong thủy cải vận tốt nhất!`
@@ -818,38 +833,18 @@ export const TuViHoroscope: React.FC<TuViProps> = ({ onSaveResult, onNavigateTab
                 <label className="block text-xs font-semibold text-amber-200 mb-1">
                   Ngày sinh Dương lịch (Ngày / Tháng / Năm):
                 </label>
-                <div className="grid grid-cols-3 gap-2">
-                  <input
-                    type="number"
-                    min="1"
-                    max="31"
-                    required
-                    value={solarDay}
-                    onChange={(e) => setSolarDay(parseInt(e.target.value) || 1)}
-                    placeholder="Ngày"
-                    className="bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl px-2 py-2 text-center text-sm font-bold text-amber-300"
-                  />
-                  <input
-                    type="number"
-                    min="1"
-                    max="12"
-                    required
-                    value={solarMonth}
-                    onChange={(e) => setSolarMonth(parseInt(e.target.value) || 1)}
-                    placeholder="Tháng"
-                    className="bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl px-2 py-2 text-center text-sm font-bold text-amber-300"
-                  />
-                  <input
-                    type="number"
-                    min="1900"
-                    max="2050"
-                    required
-                    value={solarYear}
-                    onChange={(e) => setSolarYear(parseInt(e.target.value) || 1984)}
-                    placeholder="Năm"
-                    className="bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl px-2 py-2 text-center text-sm font-bold text-amber-300"
-                  />
-                </div>
+                <BirthDateSelector
+                  day={solarDay}
+                  month={solarMonth}
+                  year={solarYear}
+                  onChange={(d, m, y) => {
+                    setSolarDay(d);
+                    setSolarMonth(m);
+                    setSolarYear(y);
+                  }}
+                  theme="amber"
+                  isLunar={false}
+                />
               </div>
             ) : (
               <div className="lg:col-span-2">
@@ -867,38 +862,15 @@ export const TuViHoroscope: React.FC<TuViProps> = ({ onSaveResult, onNavigateTab
                     <span>Tháng Nhuận</span>
                   </label>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <input
-                    type="number"
-                    min="1"
-                    max="30"
-                    required
-                    value={lunarDay}
-                    onChange={(e) => handleLunarChange(parseInt(e.target.value) || 1, lunarMonth, lunarYear, isLeapMonth)}
-                    placeholder="Ngày Âm"
-                    className="bg-slate-950 border border-purple-500/50 focus:border-purple-400 rounded-xl px-2 py-2 text-center text-sm font-bold text-purple-300"
-                  />
-                  <input
-                    type="number"
-                    min="1"
-                    max="12"
-                    required
-                    value={lunarMonth}
-                    onChange={(e) => handleLunarChange(lunarDay, parseInt(e.target.value) || 1, lunarYear, isLeapMonth)}
-                    placeholder="Tháng Âm"
-                    className="bg-slate-950 border border-purple-500/50 focus:border-purple-400 rounded-xl px-2 py-2 text-center text-sm font-bold text-purple-300"
-                  />
-                  <input
-                    type="number"
-                    min="1900"
-                    max="2050"
-                    required
-                    value={lunarYear}
-                    onChange={(e) => handleLunarChange(lunarDay, lunarMonth, parseInt(e.target.value) || 1984, isLeapMonth)}
-                    placeholder="Năm Âm"
-                    className="bg-slate-950 border border-purple-500/50 focus:border-purple-400 rounded-xl px-2 py-2 text-center text-sm font-bold text-purple-300"
-                  />
-                </div>
+                <BirthDateSelector
+                  day={lunarDay}
+                  month={lunarMonth}
+                  year={lunarYear}
+                  onChange={(d, m, y) => handleLunarChange(d, m, y, isLeapMonth)}
+                  theme="purple"
+                  isLunar={true}
+                  showCalendarPicker={false}
+                />
               </div>
             )}
           </div>
@@ -1137,6 +1109,53 @@ export const TuViHoroscope: React.FC<TuViProps> = ({ onSaveResult, onNavigateTab
             </div>
 
           </div>
+
+          {profileSummary && parsedSections && (
+            <section className="relative overflow-hidden rounded-3xl border border-purple-400/40 bg-gradient-to-br from-slate-950 via-indigo-950/60 to-slate-950 p-5 shadow-xl sm:p-7 space-y-5">
+              <div className="pointer-events-none absolute -right-12 -top-16 h-48 w-48 rounded-full bg-purple-500/10 blur-3xl" />
+              <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <span className="inline-flex rounded-full border border-purple-300/30 bg-purple-400/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-purple-200">Lá số của {profileSummary.fullName} · {profileSummary.canChiYear}</span>
+                  <h3 className="mt-2 flex items-center gap-2 font-mystic text-xl font-bold text-amber-200"><Calendar className="h-5 w-5 text-amber-300" /> Vận Hạn &amp; Thời Vận</h3>
+                  <p className="mt-1 text-xs text-slate-300">Các mốc tuổi và gợi ý cho {forecastYear}–{nextForecastYear}; nội dung để tham khảo, không phải dự đoán chắc chắn.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => speakVoice(futureFortuneSpeech, 'future_fortune', gender === 'nam' ? 'female' : 'male')}
+                  className="min-h-11 shrink-0 rounded-xl border border-amber-300/50 bg-amber-400/10 px-4 py-2 text-xs font-semibold text-amber-200 transition hover:bg-amber-400/20 active:scale-95"
+                >
+                  <span className="inline-flex items-center gap-2"><Volume2 className="h-4 w-4" /> Nghe vận hạn sắp tới</span>
+                </button>
+              </div>
+
+              <div className="relative grid grid-cols-1 gap-3 md:grid-cols-3">
+                {[
+                  { label: 'Đại Vận Tiền Vận', text: parsedSections.daiVanTien, icon: '✦', color: 'border-sky-400/30 bg-sky-950/30 text-sky-200' },
+                  { label: 'Đại Vận Đương Thời', text: parsedSections.daiVanDuongThoi, icon: '☯', color: 'border-amber-400/40 bg-amber-950/25 text-amber-100' },
+                  { label: 'Bước Ngoặt Lớn', text: parsedSections.daiVanBuocNgoat, icon: '✧', color: 'border-emerald-400/30 bg-emerald-950/25 text-emerald-100' }
+                ].map((item) => (
+                  <article key={item.label} className={`rounded-2xl border p-4 ${item.color}`}>
+                    <div className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide"><span>{item.icon}</span><span>{item.label}</span></div>
+                    <p className="whitespace-pre-line text-sm leading-relaxed text-slate-200">{item.text}</p>
+                  </article>
+                ))}
+              </div>
+
+              <div className="relative grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+                <article className="rounded-2xl border border-rose-400/30 bg-rose-950/20 p-4">
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <span className="rounded-full border border-rose-300/40 bg-rose-400/10 px-2.5 py-1 text-[10px] font-bold text-rose-200">Cảnh Báo Vận Hạn {forecastYear}-{nextForecastYear}</span>
+                    {approximateAge !== null && <span className="text-[10px] text-slate-400">Khoảng {approximateAge} tuổi dương</span>}
+                  </div>
+                  <p className="whitespace-pre-line text-sm leading-relaxed text-slate-200">{parsedSections.tieuVan}</p>
+                </article>
+                <article className="rounded-2xl border border-teal-400/30 bg-teal-950/20 p-4">
+                  <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-teal-200">Lời khuyên hóa giải · hành động</div>
+                  <p className="whitespace-pre-line text-sm leading-relaxed text-slate-200">{parsedSections.hoaGiai}</p>
+                </article>
+              </div>
+            </section>
+          )}
 
           {/* BẢNG CHI TIẾT LÝ GIẢI BẢN MỆNH CẢ ĐỜI (LIFELONG DESTINY DOSSIER) */}
           {lifeDossier && (
@@ -1436,9 +1455,6 @@ export const TuViHoroscope: React.FC<TuViProps> = ({ onSaveResult, onNavigateTab
                   <div className="flex items-center justify-between border-b border-slate-800 pb-1.5 mb-2">
                     <span className="font-mystic font-bold text-sm text-amber-300 group-hover:text-amber-200">
                       Cung {palace.name}
-                    </span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800 font-semibold">
-                      {palace.luckScore}% Cát
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-1 mb-2">
@@ -2145,3 +2161,8 @@ export const TuViHoroscope: React.FC<TuViProps> = ({ onSaveResult, onNavigateTab
     </div>
   );
 };
+
+
+
+
+

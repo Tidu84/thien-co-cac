@@ -448,18 +448,21 @@ HƯỚNG ĐANG ĐO:
               <span>Năm sinh (Âm lịch):</span>
               {!hasBirthYear && <span className="text-rose-400 font-bold">* (Cần bổ sung)</span>}
             </label>
-            <input
-              type="number"
-              min="1920"
-              max="2035"
+            <select
               value={birthYear}
-              onChange={(e) => handleBirthYearChange(parseInt(e.target.value) || 1984)}
-              className={`w-full bg-slate-950 border rounded-xl px-3.5 py-2 text-sm text-center font-bold text-amber-300 focus:outline-none transition ${
+              onChange={(e) => handleBirthYearChange(Number(e.target.value))}
+              className={`w-full bg-slate-950 border rounded-xl px-3 py-2 text-sm text-center font-bold text-amber-300 focus:outline-none cursor-pointer transition ${
                 !hasBirthYear
                   ? 'border-amber-400 ring-2 ring-amber-400/50 bg-amber-950/20'
                   : 'border-slate-700 focus:border-emerald-400'
               }`}
-            />
+            >
+              {Array.from({ length: new Date().getFullYear() - 1920 + 1 }, (_, i) => new Date().getFullYear() - i).map(y => (
+                <option key={y} value={y} className="bg-slate-900 text-slate-100 py-1">
+                  Năm {y}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 

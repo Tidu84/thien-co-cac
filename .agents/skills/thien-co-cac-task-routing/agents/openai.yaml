@@ -1,0 +1,6 @@
+interface:
+  display_name: "Thien Co Cac - Task routing"
+  short_description: "Route project work to the right workflow"
+  default_prompt: "Use $thien-co-cac-task-routing to route this Thiên Cơ Các task."
+policy:
+  allow_implicit_invocation: true

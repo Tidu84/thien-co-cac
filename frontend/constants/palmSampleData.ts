@@ -114,14 +114,6 @@ function generatePalmSvg(type:
     <!-- Vòng ngấn cổ tay -->
     <path d="M 175 480 C 235 495, 280 492, 300 480" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" opacity="0.6" />
     <path d="M 180 492 C 235 505, 275 502, 295 492" fill="none" stroke="#d97706" stroke-width="1.5" stroke-linecap="round" opacity="0.4" />
-
-    <!-- Các Gò Bàn Tay -->
-    <text x="145" y="340" fill="#a78bfa" font-size="10" font-family="sans-serif" opacity="0.7">Gò Kim Tinh</text>
-    <text x="175" y="225" fill="#a78bfa" font-size="10" font-family="sans-serif" opacity="0.7">Mộc Tinh</text>
-    <text x="235" y="210" fill="#a78bfa" font-size="10" font-family="sans-serif" opacity="0.7">Thổ Tinh</text>
-    <text x="285" y="210" fill="#a78bfa" font-size="10" font-family="sans-serif" opacity="0.7">Thái Dương</text>
-    <text x="325" y="255" fill="#a78bfa" font-size="10" font-family="sans-serif" opacity="0.7">Thủy Tinh</text>
-    <text x="300" y="440" fill="#a78bfa" font-size="10" font-family="sans-serif" opacity="0.7">Thái Âm</text>
   `;
 
   let patternContent = '';
@@ -132,34 +124,28 @@ function generatePalmSvg(type:
       <path d="M 185 285 C 220 310, 260 340, 310 365" fill="none" stroke="url(#goldLine)" stroke-width="4.5" stroke-linecap="round" filter="url(#goldGlow)" />
       <path d="M 245 440 C 248 370, 252 300, 258 245" fill="none" stroke="url(#goldLine)" stroke-width="4" stroke-linecap="round" filter="url(#goldGlow)" />
       <path d="M 335 305 C 290 300, 240 280, 205 275" fill="none" stroke="url(#goldLine)" stroke-width="4.5" stroke-linecap="round" filter="url(#goldGlow)" />
-      <text x="245" y="325" fill="#fef08a" font-size="34" font-weight="extrabold" font-family="serif" text-anchor="middle" filter="url(#goldGlow)">M</text>
-      <rect x="75" y="520" width="350" height="42" rx="12" fill="#180e28" stroke="#f59e0b" stroke-width="1.5" />
-      <text x="250" y="546" fill="#fef08a" font-size="14" font-weight="bold" font-family="serif" text-anchor="middle">👑 CHỈ TAY CHỮ M • PHÚ QUÝ SONG TOÀN</text>
+      <circle cx="245" cy="325" r="18" fill="url(#goldLine)" fill-opacity="0.25" stroke="#f59e0b" stroke-width="1.5" filter="url(#goldGlow)" />
     `;
   } else if (type === 'simian_line') {
     patternContent = `
       <path d="M 185 285 C 170 330, 175 390, 215 460" fill="none" stroke="#ef4444" stroke-width="2.5" opacity="0.6" />
       <line x1="165" y1="290" x2="335" y2="290" stroke="url(#goldLine)" stroke-width="6" stroke-linecap="round" filter="url(#goldGlow)" />
-      <text x="250" y="278" fill="#fef08a" font-size="11" font-weight="bold" font-family="sans-serif" text-anchor="middle">Đường Quán Thông (Tâm Trí Nhất Thể)</text>
-      <rect x="75" y="520" width="350" height="42" rx="12" fill="#180e28" stroke="#f59e0b" stroke-width="1.5" />
-      <text x="250" y="546" fill="#fef08a" font-size="14" font-weight="bold" font-family="serif" text-anchor="middle">⚔️ CHỈ TAY CHỮ NHẤT • Ý CHÍ QUÂN VƯƠNG</text>
+      <circle cx="250" cy="290" r="14" fill="#f59e0b" fill-opacity="0.3" stroke="#f59e0b" stroke-width="2" filter="url(#goldGlow)" />
     `;
   } else if (type === 'gold_ingot') {
     patternContent = `
       <path d="M 185 285 C 170 330, 175 390, 215 460" fill="none" stroke="#ef4444" stroke-width="2.5" opacity="0.5" />
       <path d="M 185 285 C 220 310, 260 340, 310 365" fill="none" stroke="#3b82f6" stroke-width="2.5" opacity="0.5" />
       <polygon points="215,310 280,318 295,365 210,360" fill="url(#goldLine)" fill-opacity="0.35" stroke="url(#goldLine)" stroke-width="3" filter="url(#goldGlow)" />
-      <text x="250" y="345" fill="#fef08a" font-size="20" text-anchor="middle">🪙</text>
-      <rect x="75" y="520" width="350" height="42" rx="12" fill="#180e28" stroke="#f59e0b" stroke-width="1.5" />
-      <text x="250" y="546" fill="#fef08a" font-size="14" font-weight="bold" font-family="serif" text-anchor="middle">💰 THỎI VÀNG NGUYÊN BẢO • TỤ TÀI KHỐ</text>
     `;
   } else if (type === 'tam_tai') {
     patternContent = `
       <path d="M 185 285 C 165 330, 170 395, 215 465" fill="none" stroke="url(#goldLine)" stroke-width="4" stroke-linecap="round" filter="url(#glow)" />
       <path d="M 185 285 C 225 315, 265 345, 315 370" fill="none" stroke="url(#goldLine)" stroke-width="4" stroke-linecap="round" filter="url(#glow)" />
       <path d="M 335 305 C 290 300, 240 275, 205 270" fill="none" stroke="url(#goldLine)" stroke-width="4" stroke-linecap="round" filter="url(#glow)" />
-      <rect x="75" y="520" width="350" height="42" rx="12" fill="#180e28" stroke="#f59e0b" stroke-width="1.5" />
-      <text x="250" y="546" fill="#fef08a" font-size="14" font-weight="bold" font-family="serif" text-anchor="middle">🕊️ TAM TÀI CÁT TƯỚNG • TRƯỜNG THỌ BÌNH AN</text>
+      <circle cx="215" cy="465" r="5" fill="#f59e0b" filter="url(#goldGlow)" />
+      <circle cx="315" cy="370" r="5" fill="#f59e0b" filter="url(#goldGlow)" />
+      <circle cx="335" cy="305" r="5" fill="#f59e0b" filter="url(#goldGlow)" />
     `;
   } else if (type === 'mystic_cross') {
     patternContent = `
@@ -169,8 +155,6 @@ function generatePalmSvg(type:
       <line x1="235" y1="290" x2="265" y2="330" stroke="url(#goldLine)" stroke-width="4.5" stroke-linecap="round" filter="url(#goldGlow)" />
       <line x1="265" y1="290" x2="235" y2="330" stroke="url(#goldLine)" stroke-width="4.5" stroke-linecap="round" filter="url(#goldGlow)" />
       <circle cx="250" cy="310" r="28" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.7" />
-      <rect x="75" y="520" width="350" height="42" rx="12" fill="#180e28" stroke="#f59e0b" stroke-width="1.5" />
-      <text x="250" y="546" fill="#fef08a" font-size="14" font-weight="bold" font-family="serif" text-anchor="middle">🔮 CHỮ X HUYỀN BÍ • GIÁC QUAN THỨ SÁU</text>
     `;
   } else if (type === 'fish_tail') {
     patternContent = `
@@ -179,8 +163,6 @@ function generatePalmSvg(type:
       <path d="M 185 285 C 170 330, 175 390, 205 435" fill="none" stroke="url(#goldLine)" stroke-width="3.5" stroke-linecap="round" filter="url(#glow)" />
       <path d="M 205 435 C 215 450, 230 465, 238 480" fill="none" stroke="url(#goldLine)" stroke-width="3.5" stroke-linecap="round" filter="url(#goldGlow)" />
       <path d="M 205 435 C 195 450, 185 465, 178 480" fill="none" stroke="url(#goldLine)" stroke-width="3.5" stroke-linecap="round" filter="url(#goldGlow)" />
-      <rect x="75" y="520" width="350" height="42" rx="12" fill="#180e28" stroke="#f59e0b" stroke-width="1.5" />
-      <text x="250" y="546" fill="#fef08a" font-size="14" font-weight="bold" font-family="serif" text-anchor="middle">🌊 ĐUÔI CÁ NGƯ VĨ • HẬU VẬN ĐẠI PHÁT</text>
     `;
   } else if (type === 'hand_nong_nay') {
     // Sắc thái bàn tay nóng nảy của Bác sĩ Josef Ranald (Tâm đạo dây thừng, ngón út ngắn, nhiều nếp nhăn)
@@ -188,7 +170,6 @@ function generatePalmSvg(type:
       <!-- Tâm đạo dạng xoắn xích dây thừng -->
       <path d="M 335 305 C 290 300, 240 270, 205 270" fill="none" stroke="#f43f5e" stroke-width="4" stroke-dasharray="6 3" filter="url(#glow)" />
       <path d="M 335 302 C 290 297, 240 273, 205 273" fill="none" stroke="#fb7185" stroke-width="2" opacity="0.8" />
-      <text x="270" y="260" fill="#f43f5e" font-size="10" font-weight="bold">Tâm Đạo Hình Dây Thừng</text>
       <!-- Nhiều chỉ tay chằng chịt lo âu & dục tốc -->
       <line x1="205" y1="315" x2="235" y2="340" stroke="#fda4af" stroke-width="1.2" opacity="0.7" />
       <line x1="225" y1="345" x2="255" y2="360" stroke="#fda4af" stroke-width="1.2" opacity="0.7" />
@@ -197,9 +178,6 @@ function generatePalmSvg(type:
       <line x1="180" y1="360" x2="210" y2="380" stroke="#fda4af" stroke-width="1.2" opacity="0.7" />
       <!-- Đánh dấu ngón út ngắn -->
       <circle cx="372" cy="195" r="16" fill="none" stroke="#f43f5e" stroke-width="2" stroke-dasharray="3 3" />
-      <text x="375" y="225" fill="#fda4af" font-size="9" font-weight="bold">Ngón út ngắn</text>
-      <rect x="75" y="520" width="350" height="42" rx="12" fill="#180e28" stroke="#f43f5e" stroke-width="1.5" />
-      <text x="250" y="546" fill="#fda4af" font-size="13" font-weight="bold" font-family="serif" text-anchor="middle">🔥 BÀN TAY NÓNG NẢY • DỤC TỐC (RANALD)</text>
     `;
   } else if (type === 'hand_lanh_dam') {
     // Sắc thái bàn tay lãnh đạm (mềm dày, ít chỉ tay, tàn nhang lấm chấm)
@@ -214,39 +192,29 @@ function generatePalmSvg(type:
       <path d="M 185 285 C 170 330, 175 390, 215 460" fill="none" stroke="#60a5fa" stroke-width="2.5" opacity="0.45" />
       <path d="M 185 285 C 220 310, 260 335, 305 355" fill="none" stroke="#60a5fa" stroke-width="2.5" opacity="0.45" />
       <path d="M 335 305 C 290 300, 240 280, 205 275" fill="none" stroke="#60a5fa" stroke-width="2.5" opacity="0.45" />
-      <text x="250" y="325" fill="#93c5fd" font-size="11" font-weight="bold" text-anchor="middle">Ít Chỉ Tay • Da Trắng Nhạt Mềm Dày</text>
-      <rect x="75" y="520" width="350" height="42" rx="12" fill="#180e28" stroke="#3b82f6" stroke-width="1.5" />
-      <text x="250" y="546" fill="#bfdbfe" font-size="13" font-weight="bold" font-family="serif" text-anchor="middle">❄️ BÀN TAY LÃNH ĐẠM • TRẦM MẶC (RANALD)</text>
     `;
   } else if (type === 'hand_hon_gian') {
     // Sắc thái bàn tay hờn giận / tự ái (lòng bàn trũng, Trí đạo dài thẳng tắp, ngón cái rất dài)
     patternContent = `
       <!-- Lòng bàn tay trũng sâu (vùng chứa tham vọng & tự ái) -->
       <ellipse cx="250" cy="330" rx="42" ry="28" fill="#d97706" fill-opacity="0.18" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4 3" />
-      <text x="250" y="335" fill="#fef08a" font-size="10" font-weight="bold" text-anchor="middle">Lòng Bàn Trũng Sâu</text>
       <!-- Trí đạo thẳng tắp, sâu đậm cắt ngang bàn tay -->
       <line x1="185" y1="285" x2="335" y2="335" stroke="url(#goldLine)" stroke-width="4.5" stroke-linecap="round" filter="url(#goldGlow)" />
       <!-- Đánh dấu ngón cái rất dài vươn cao -->
       <line x1="110" y1="210" x2="75" y2="180" stroke="#f59e0b" stroke-width="2" stroke-dasharray="2 2" />
       <circle cx="75" cy="180" r="5" fill="#f59e0b" />
-      <text x="75" y="165" fill="#fef08a" font-size="9" font-weight="bold">Ngón cái dài</text>
-      <rect x="75" y="520" width="350" height="42" rx="12" fill="#180e28" stroke="#f59e0b" stroke-width="1.5" />
-      <text x="250" y="546" fill="#fef08a" font-size="13" font-weight="bold" font-family="serif" text-anchor="middle">⚡ BÀN TAY TỰ ÁI & THAM VỌNG (RANALD)</text>
     `;
   } else if (type === 'hand_uong_nganh') {
     // Sắc thái bàn tay ương ngạnh (gò Kim Tinh nở vồng cứng chắc, chỉ tay son đậm)
     patternContent = `
       <!-- Gò Kim Tinh nổi cứng chắc và phát quang -->
       <path d="M 160 300 C 135 340, 155 440, 205 465 C 215 420, 205 340, 160 300 Z" fill="#ec4899" fill-opacity="0.3" stroke="#f43f5e" stroke-width="2.5" filter="url(#glow)" />
-      <text x="180" y="385" fill="#fb7185" font-size="10" font-weight="bold">Kim Tinh Cứng Nở</text>
       <!-- 3 đường chỉ tay son đậm màu hồng -->
       <path d="M 185 285 C 170 330, 175 390, 215 460" fill="none" stroke="#fb7185" stroke-width="4.5" stroke-linecap="round" filter="url(#glow)" />
       <path d="M 185 285 C 220 310, 260 340, 310 365" fill="none" stroke="#fb7185" stroke-width="4.5" stroke-linecap="round" filter="url(#glow)" />
       <path d="M 335 305 C 290 300, 240 280, 205 275" fill="none" stroke="#fb7185" stroke-width="4.5" stroke-linecap="round" filter="url(#glow)" />
       <!-- Đánh dấu ngón cái ngắn -->
-      <text x="110" y="240" fill="#f43f5e" font-size="9" font-weight="bold">Cái ngắn</text>
-      <rect x="75" y="520" width="350" height="42" rx="12" fill="#180e28" stroke="#fb7185" stroke-width="1.5" />
-      <text x="250" y="546" fill="#fbcfe8" font-size="13" font-weight="bold" font-family="serif" text-anchor="middle">⛰️ BÀN TAY ƯƠNG NGẠNH • BẢN LĨNH (RANALD)</text>
+      <circle cx="95" cy="235" r="14" fill="none" stroke="#f43f5e" stroke-width="1.8" stroke-dasharray="3 3" />
     `;
   } else if (type === 'hand_spatula') {
     // Ngón tay hình cái bay (Doigts Spatulés của Henry Rem: Napoléon, Rembrandt, Rubens)
@@ -255,12 +223,8 @@ function generatePalmSvg(type:
       <ellipse cx="200" cy="120" rx="16" ry="11" fill="#c084fc" fill-opacity="0.4" stroke="#c084fc" stroke-width="2" />
       <ellipse cx="260" cy="72" rx="18" ry="12" fill="#c084fc" fill-opacity="0.4" stroke="#c084fc" stroke-width="2" />
       <ellipse cx="322" cy="115" rx="16" ry="11" fill="#c084fc" fill-opacity="0.4" stroke="#c084fc" stroke-width="2" />
-      <text x="260" y="45" fill="#e9d5ff" font-size="10" font-weight="bold" text-anchor="middle">Đầu Ngón Hình Cái Bay (Spatulés)</text>
       <!-- Gò Thái Dương rực sáng nghệ thuật & danh vọng -->
       <circle cx="285" cy="225" r="16" fill="url(#goldLine)" fill-opacity="0.4" stroke="#f59e0b" stroke-width="2" filter="url(#goldGlow)" />
-      <text x="285" y="230" fill="#fef08a" font-size="10" font-weight="bold" text-anchor="middle">Thái Dương</text>
-      <rect x="75" y="520" width="350" height="42" rx="12" fill="#180e28" stroke="#c084fc" stroke-width="1.5" />
-      <text x="250" y="546" fill="#e9d5ff" font-size="13" font-weight="bold" font-family="serif" text-anchor="middle">🎨 NGÓN TAY CÁI BAY • BẬC DANH NHÂN</text>
     `;
   } else {
     // Bàn tay nhỏ tinh tế (Tiểu thủ mẫn tiệp)
@@ -271,9 +235,6 @@ function generatePalmSvg(type:
       <path d="M 185 285 C 170 330, 175 390, 215 460" fill="none" stroke="#38bdf8" stroke-width="2.5" />
       <path d="M 185 285 C 220 310, 260 340, 310 365" fill="none" stroke="#38bdf8" stroke-width="2.5" />
       <path d="M 335 305 C 290 300, 240 280, 205 275" fill="none" stroke="#38bdf8" stroke-width="2.5" />
-      <text x="250" y="330" fill="#7dd3fc" font-size="11" font-weight="bold" text-anchor="middle">Tỉ Mỉ • Khéo Léo • Nhận Thức Nhanh</text>
-      <rect x="75" y="520" width="350" height="42" rx="12" fill="#180e28" stroke="#38bdf8" stroke-width="1.5" />
-      <text x="250" y="546" fill="#bae6fd" font-size="13" font-weight="bold" font-family="serif" text-anchor="middle">💡 BÀN TAY NHỎ TINH TẾ • KHÉO LÉO</text>
     `;
   }
 
@@ -573,7 +534,7 @@ Tránh sa đà vào việc lo nghĩ những chuyện vụn vặt gây hao tổn 
   }
 ];
 
-// Danh sách các loại tướng mặt chuẩn sách hướng dẫn
+// Danh sách các loại tướng mặt chuẩn sách hướng dẫn (Thập Diện Tướng Pháp - Ma Y Thần Tướng & Liễu Trang Tướng Pháp)
 export const FACE_PATTERNS: FacePattern[] = [
   {
     id: 'face_dien',
@@ -590,7 +551,24 @@ Trán vuông vức, xương hàm nở nang đầy đặn, khuôn mặt cân đ�
 2. TÍNH CÁCH & VẬN SỐ:
 - Tính tình cương trực, trọng chữ tín, làm việc cẩn trọng và kiên nhẫn.
 - Là trụ cột vững chắc của gia đình và tổ chức. Trung vận tích lũy tài sản rất lớn.`,
-    imageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&q=80'
+    imageUrl: '/assets/tuong_mat_chu_dien.jpg'
+  },
+  {
+    id: 'face_vien',
+    name: 'Tướng Mặt Chữ Viên',
+    bookTitle: 'Thần Tướng Toàn Thư • Viên Mãn Phú Khí',
+    badge: 'Phúc Đức Đôn Hậu ⭐⭐⭐',
+    badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-400/40',
+    meaning: 'Khuôn mặt tròn trịa đầy đặn, tính tình hòa nhã, kinh doanh buôn bán đại phát',
+    description: 'Mặt chữ Viên (Hình Thủy) chủ về tính tình khoan dung độ lượng, duyên ăn nói khéo léo, tiền tài dồi dào, hậu vận ấm no sung túc.',
+    analysisDetail: `[NHÂN DIỆN HỌC LUẬN GIẢI TƯỚNG MẶT CHỮ VIÊN (MẶT TRÒN)]
+1. ĐẶC ĐIỂM NHẬN DIỆN:
+Khuôn mặt tròn trịa, gò má và cằm đầy đặn, da dẻ nhuận hồng, mắt sáng miệng hay cười thân thiện.
+
+2. TÀI LỘC & NHÂN DUYÊN:
+- Tính tình cởi mở, bao dung, dễ kết giao và rất được lòng mọi người xung quanh.
+- Duyên kinh thương buôn bán cực vượng, tụ tài tụ lộc, gia đình hòa thuận an vui.`,
+    imageUrl: '/assets/tuong_mat_chu_vien.jpg'
   },
   {
     id: 'face_xoan',
@@ -607,7 +585,75 @@ Trán vuông vức, xương hàm nở nang đầy đặn, khuôn mặt cân đ�
 2. NHÂN DUYÊN & TÀI LỘC:
 - Rất giỏi ngoại giao và nghệ thuật, được mọi người xung quanh nâng đỡ.
 - Đời sống tinh thần phong phú, gia đạo êm ấm viên mãn.`,
-    imageUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&q=80'
+    imageUrl: '/assets/tuong_mat_trai_xoan.jpg'
+  },
+  {
+    id: 'face_giap',
+    name: 'Tướng Mặt Chữ Giáp',
+    bookTitle: 'Liễu Trang Tướng Pháp • Thông Minh Tuệ Giác',
+    badge: 'Tài Hoa Xuất Chúng ⭐⭐⭐',
+    badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-400/40',
+    meaning: 'Trán cao rộng, cằm thon thanh tú, trí tuệ siêu quần, tiền vận thăng tiến vinh hiển',
+    description: 'Mặt chữ Giáp (甲) có thượng đình phát triển vượt trội, chủ về người học rộng tài cao, sáng tạo xuất chúng, sớm thành công trong học thuật và nghệ thuật.',
+    analysisDetail: `[NHÂN DIỆN HỌC LUẬN GIẢI TƯỚNG MẶT CHỮ GIÁP]
+1. ĐẶC ĐIỂM NHẬN DIỆN:
+Trán cao rộng và nở nang biểu trưng cho tư duy uyên bác; khuôn mặt thon gọn dần về phía cằm thanh tú.
+
+2. CÔNG DANH & TRÍ TUỆ:
+- Khả năng tiếp thu và xử lý thông tin cực nhanh, có năng khiếu đặc biệt về chiến lược và sáng tạo.
+- Tiền vận đỗ đạt hoặc tạo dựng danh tiếng sớm, cuộc sống phong lưu nho nhã.`,
+    imageUrl: '/assets/tuong_mat_chu_giap.jpg'
+  },
+  {
+    id: 'face_do',
+    name: 'Tướng Mặt Chữ Do',
+    bookTitle: 'Ma Y Thần Tướng • Khổ Tận Cam Lai',
+    badge: 'Hậu Vận Đại Phát ⭐⭐⭐',
+    badgeColor: 'bg-amber-600/20 text-amber-200 border-amber-500/40',
+    meaning: 'Trán hẹp cằm nở, cần cù chịu khó, trung và hậu vận tích lũy điền sản rất lớn',
+    description: 'Mặt chữ Do (由) có hạ đình nở nang vững chắc, chủ về người tự lực cánh sinh, bền bỉ kiên trì, càng lớn tuổi càng giàu sang phú quý.',
+    analysisDetail: `[NHÂN DIỆN HỌC LUẬN GIẢI TƯỚNG MẶT CHỮ DO]
+1. ĐẶC ĐIỂM NHẬN DIỆN:
+Thượng đình (trán) hơi hẹp, nhưng từ gò má xuống xương hàm và cằm nở nang vững chãi, cằm dày thịt.
+
+2. VẬN MỆNH & ĐIỀN SẢN:
+- Thời trẻ bươn chải kiên cường, tôi rèn bản lĩnh, không bao giờ bỏ cuộc trước nghịch cảnh.
+- Bước vào trung và hậu vận đại cát đại phát, tài sản đất đai tích tụ dồi dào, con cháu hiếu thuận.`,
+    imageUrl: '/assets/tuong_mat_chu_do.jpg'
+  },
+  {
+    id: 'face_dong',
+    name: 'Tướng Mặt Chữ Đồng',
+    bookTitle: 'Thái Ất Thần Tướng • Ngũ Nhạc Triều Quy',
+    badge: 'Vương Giả Lãnh Tụ ⭐⭐⭐',
+    badgeColor: 'bg-yellow-500/20 text-yellow-300 border-yellow-400/40',
+    meaning: 'Mặt vuông tròn hài hòa, ngũ nhạc triều quy, cốt cách đại tướng, danh lừng bốn bể',
+    description: 'Mặt chữ Đồng (同) là tướng mạo hoàn mỹ của bậc lãnh đạo, khí phách phi phàm, tài đức vẹn toàn, quyền uy hiển hách được muôn người kính trọng.',
+    analysisDetail: `[NHÂN DIỆN HỌC LUẬN GIẢI TƯỚNG MẶT CHỮ ĐỒNG]
+1. ĐẶC ĐIỂM NHẬN DIỆN:
+Khuôn mặt hình chữ nhật vuông vức nhưng góc cạnh tròn trịa đầy đặn, mày rậm mắt sáng, ngũ quan tương xứng quy về sống mũi.
+
+2. QUYỀN UY & SỰ NGHIỆP:
+- Tố chất thủ lĩnh bẩm sinh, tầm nhìn sâu rộng, quyết đoán và có sức hiệu triệu lớn.
+- Thường nắm giữ vị trí chủ chốt hoặc đứng đầu các tổ chức lớn, để lại sự nghiệp rạng danh.`,
+    imageUrl: '/assets/tuong_mat_chu_dong.jpg'
+  },
+  {
+    id: 'face_muc',
+    name: 'Tướng Mặt Chữ Mục',
+    bookTitle: 'Quản Lạc Nhân Tướng • Thanh Cao Diên Thọ',
+    badge: 'Thâm Trầm Trường Thọ ⭐⭐⭐',
+    badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-400/40',
+    meaning: 'Khuôn mặt thon dài thanh nhã, thâm trầm kín đáo, thích tư duy triết lý, phúc thọ an khang',
+    description: 'Mặt chữ Mục (目 • Hình Mộc) chủ về người có chiều sâu nội tâm, phong thái nho nhã, sống thanh tao thoát tục, trường thọ diên niên.',
+    analysisDetail: `[NHÂN DIỆN HỌC LUẬN GIẢI TƯỚNG MẶT CHỮ MỤC]
+1. ĐẶC ĐIỂM NHẬN DIỆN:
+Khuôn mặt thon dài, sống mũi cao thẳng, khoảng cách các bộ vị thanh nhã, ánh mắt tĩnh lặng thâm thúy.
+
+2. TÂM TÍNH & TUỔI THỌ:
+- Thích sự tĩnh lặng, nghiên cứu sâu sắc về đạo lý, chuyên môn hoặc học thuật đỉnh cao.
+- Tâm tính an nhiên, không chuộng phù hoa náo nhiệt, hưởng tuổi thọ cao và hậu vận an nhàn.`,
+    imageUrl: '/assets/tuong_mat_chu_muc.jpg'
   },
   {
     id: 'face_tam_dinh',
@@ -624,12 +670,12 @@ Thượng Đình (Trí tuệ), Trung Đình (Công danh sự nghiệp) và Hạ 
 2. VẬN HẠN CẢ ĐỜI:
 - Cả ba giai đoạn tiền vận, trung vận và hậu vận đều phát triển thuận lợi, không có thăng trầm đứt gãy lớn.
 - Số đại cát đại lợi, tuổi thọ cao và phúc đức truyền đời.`,
-    imageUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=500&q=80'
+    imageUrl: '/assets/tuong_mat_tam_dinh.jpg'
   }
 ];
 
 // Sinh SVG hình dáng toàn thân chuẩn đồ họa cổ thư hình tướng học
-function generateBodySvg(type: 'long_hanh' | 'kim_hinh' | 'moc_hinh'): string {
+function generateBodySvg(type: 'long_hanh' | 'kim_hinh' | 'moc_hinh' | 'thuy_hinh' | 'hoa_hinh' | 'tho_hinh' | 'hac_hinh' | 'quy_boi'): string {
   const commonDefs = `
     <defs>
       <linearGradient id="bodyBg" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -645,6 +691,15 @@ function generateBodySvg(type: 'long_hanh' | 'kim_hinh' | 'moc_hinh'): string {
         <stop offset="0%" stop-color="#fef08a" />
         <stop offset="50%" stop-color="#f59e0b" />
         <stop offset="100%" stop-color="#b45309" />
+      </linearGradient>
+      <linearGradient id="cyanChakra" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#67e8f9" />
+        <stop offset="100%" stop-color="#0891b2" />
+      </linearGradient>
+      <linearGradient id="fireChakra" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#fde047" />
+        <stop offset="50%" stop-color="#f97316" />
+        <stop offset="100%" stop-color="#dc2626" />
       </linearGradient>
       <filter id="bodyGlow" x="-20%" y="-20%" width="140%" height="140%">
         <feGaussianBlur stdDeviation="3" result="blur" />
@@ -678,10 +733,11 @@ function generateBodySvg(type: 'long_hanh' | 'kim_hinh' | 'moc_hinh'): string {
       <path d="M 235 125 L 225 145 L 160 165 C 145 172, 145 190, 150 255 L 155 330 C 158 340, 178 340, 180 330 L 190 240 L 200 250 L 200 350 L 195 460 C 193 475, 222 475, 225 460 L 235 365 L 265 365 L 275 460 C 278 475, 307 475, 305 460 L 300 350 L 300 250 L 310 240 L 320 330 C 322 340, 342 340, 345 330 L 350 255 C 355 190, 355 172, 340 165 L 275 145 L 265 125 Z" 
             fill="url(#bodyGrad)" stroke="#38bdf8" stroke-width="2" filter="url(#bodyGlow)" />
       <line x1="250" y1="130" x2="250" y2="365" stroke="#38bdf8" stroke-width="3" filter="url(#bodyGlow)" />
+      <circle cx="250" cy="250" r="170" fill="none" stroke="#38bdf8" stroke-width="1.2" stroke-dasharray="4 6" opacity="0.35" />
       <text x="250" y="40" fill="#38bdf8" font-size="13" font-weight="bold" text-anchor="middle" letter-spacing="1">KIM HÌNH CƯƠNG TRỰC • UY NGHI LÃNH ĐẠO</text>
       <text x="250" y="475" fill="#93c5fd" font-size="10" text-anchor="middle">Cốt cách kiên định • Bản lĩnh xoay chuyển càn khôn</text>
     `;
-  } else {
+  } else if (type === 'moc_hinh') {
     specificSvg = `
       <ellipse cx="250" cy="85" rx="26" ry="34" fill="url(#bodyGrad)" stroke="#34d399" stroke-width="2.5" filter="url(#bodyGlow)" />
       <path d="M 238 120 L 232 140 L 190 165 C 180 172, 175 185, 178 250 L 180 340 C 182 348, 198 348, 200 340 L 205 240 L 215 250 L 215 355 L 210 470 C 208 480, 228 480, 230 470 L 240 370 L 260 370 L 270 470 C 272 480, 292 480, 290 470 L 285 355 L 285 250 L 295 240 L 300 340 C 302 348, 318 348, 320 340 L 322 250 C 325 185, 320 172, 310 165 L 268 140 L 262 120 Z" 
@@ -689,6 +745,59 @@ function generateBodySvg(type: 'long_hanh' | 'kim_hinh' | 'moc_hinh'): string {
       <line x1="250" y1="120" x2="250" y2="370" stroke="#34d399" stroke-width="2" stroke-dasharray="4 4" filter="url(#bodyGlow)" />
       <text x="250" y="40" fill="#34d399" font-size="13" font-weight="bold" text-anchor="middle" letter-spacing="1">MỘC HÌNH THANH TÚ • NHO NHÃ VĂN NHÂN</text>
       <text x="250" y="475" fill="#a7f3d0" font-size="10" text-anchor="middle">Thanh cao đài các • Trí tuệ uyên bác danh vang</text>
+    `;
+  } else if (type === 'thuy_hinh') {
+    specificSvg = `
+      <circle cx="250" cy="85" r="34" fill="url(#bodyGrad)" stroke="#06b6d4" stroke-width="2.5" filter="url(#bodyGlow)" />
+      <path d="M 235 120 C 215 135, 165 160, 165 240 C 165 310, 185 330, 190 325 L 200 245 C 205 270, 205 340, 195 455 C 193 470, 225 470, 228 455 L 238 360 C 245 365, 255 365, 262 360 L 272 455 C 275 470, 307 470, 305 455 C 295 340, 295 270, 300 245 L 310 325 C 315 330, 335 310, 335 240 C 335 160, 285 135, 265 120 Z" 
+            fill="url(#bodyGrad)" stroke="#06b6d4" stroke-width="2" filter="url(#bodyGlow)" />
+      <circle cx="250" cy="245" r="42" fill="none" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.6" />
+      <circle cx="250" cy="245" r="10" fill="url(#cyanChakra)" filter="url(#bodyGlow)" />
+      <text x="250" y="40" fill="#22d3ee" font-size="13" font-weight="bold" text-anchor="middle" letter-spacing="1">THỦY HÌNH ĐÔN HẬU • TỤ KHÍ PHÚC LỘC</text>
+      <text x="250" y="475" fill="#67e8f9" font-size="10" text-anchor="middle">Thân hình tròn trịa • Tụ tài tụ lộc đại phú an khang</text>
+    `;
+  } else if (type === 'hoa_hinh') {
+    specificSvg = `
+      <polygon points="250,55 285,115 215,115" fill="url(#bodyGrad)" stroke="#f97316" stroke-width="2.5" filter="url(#bodyGlow)" />
+      <path d="M 235 120 L 225 140 L 155 160 C 145 168, 150 185, 160 245 L 170 330 C 172 340, 188 338, 190 328 L 202 235 L 215 245 L 220 345 L 215 460 C 213 475, 235 475, 238 460 L 246 360 L 254 360 L 262 460 C 265 475, 287 475, 285 460 L 280 345 L 285 245 L 298 235 L 310 328 C 312 338, 328 340, 330 330 L 340 245 C 350 185, 355 168, 345 160 L 275 140 L 265 120 Z" 
+            fill="url(#bodyGrad)" stroke="#f97316" stroke-width="2" filter="url(#bodyGlow)" />
+      <circle cx="250" cy="190" r="8" fill="url(#fireChakra)" filter="url(#bodyGlow)" />
+      <line x1="250" y1="125" x2="250" y2="350" stroke="#f97316" stroke-width="2.5" stroke-dasharray="5 3" filter="url(#bodyGlow)" />
+      <text x="250" y="40" fill="#fb923c" font-size="13" font-weight="bold" text-anchor="middle" letter-spacing="1">HỎA HÌNH DUỆ TRÍ • DŨNG KHÍ TIÊN PHONG</text>
+      <text x="250" y="475" fill="#fdba74" font-size="10" text-anchor="middle">Khí phách quyết liệt • Đi đầu đột phá tạo đại nghiệp</text>
+    `;
+  } else if (type === 'tho_hinh') {
+    specificSvg = `
+      <rect x="215" y="60" width="70" height="65" rx="8" fill="url(#bodyGrad)" stroke="#ca8a04" stroke-width="2.5" filter="url(#bodyGlow)" />
+      <path d="M 230 128 L 215 145 L 145 165 C 135 172, 138 195, 142 260 L 148 335 C 150 345, 175 345, 178 335 L 188 245 L 195 255 L 195 355 L 188 460 C 185 475, 220 475, 222 460 L 235 365 L 265 365 L 278 460 C 280 475, 315 475, 312 460 L 305 355 L 305 255 L 312 245 L 322 335 C 325 345, 350 345, 352 335 L 358 260 C 362 195, 365 172, 355 165 L 285 145 L 270 128 Z" 
+            fill="url(#bodyGrad)" stroke="#ca8a04" stroke-width="2.2" filter="url(#bodyGlow)" />
+      <rect x="200" y="220" width="100" height="70" rx="10" fill="none" stroke="#facc15" stroke-width="1.2" stroke-dasharray="4 4" opacity="0.5" />
+      <circle cx="250" cy="255" r="9" fill="url(#goldChakra)" filter="url(#bodyGlow)" />
+      <text x="250" y="40" fill="#facc15" font-size="13" font-weight="bold" text-anchor="middle" letter-spacing="1">THỔ HÌNH TRẦM ỔN • ĐIỀN SẢN VẠN LƯỢNG</text>
+      <text x="250" y="475" fill="#fde047" font-size="10" text-anchor="middle">Lưng dày vai gấu • Tích lũy cơ nghiệp trường tồn muôn đời</text>
+    `;
+  } else if (type === 'hac_hinh') {
+    specificSvg = `
+      <ellipse cx="250" cy="80" rx="22" ry="30" fill="url(#bodyGrad)" stroke="#2dd4bf" stroke-width="2.2" filter="url(#bodyGlow)" />
+      <line x1="250" y1="110" x2="250" y2="140" stroke="#2dd4bf" stroke-width="3" filter="url(#bodyGlow)" />
+      <path d="M 240 135 L 235 150 L 195 175 C 188 182, 185 195, 188 250 L 190 345 C 192 355, 204 355, 206 345 L 210 245 L 220 255 L 220 360 L 215 475 C 213 485, 230 485, 232 475 L 242 375 L 258 375 L 268 475 C 270 485, 287 485, 285 475 L 280 360 L 280 255 L 290 245 L 294 345 C 296 355, 308 355, 310 345 L 312 250 C 315 195, 312 182, 305 175 L 265 150 L 260 135 Z" 
+            fill="url(#bodyGrad)" stroke="#2dd4bf" stroke-width="1.8" filter="url(#bodyGlow)" />
+      <path d="M 170 200 C 150 220, 140 260, 145 300" stroke="#5eead4" stroke-width="1.2" stroke-dasharray="3 5" fill="none" opacity="0.6" />
+      <path d="M 330 200 C 350 220, 360 260, 355 300" stroke="#5eead4" stroke-width="1.2" stroke-dasharray="3 5" fill="none" opacity="0.6" />
+      <text x="250" y="40" fill="#5eead4" font-size="13" font-weight="bold" text-anchor="middle" letter-spacing="1">HẠC HÌNH TIÊN CỐT • DIÊN THỌ AN NHIÊN</text>
+      <text x="250" y="475" fill="#99f6e4" font-size="10" text-anchor="middle">Cổ cao thanh thoát • Tâm hồn tự tại thoát tục trường thọ</text>
+    `;
+  } else {
+    // quy_boi: Tướng Lưng Rùa (Quy Bối)
+    specificSvg = `
+      <circle cx="250" cy="95" r="30" fill="url(#bodyGrad)" stroke="#818cf8" stroke-width="2.5" filter="url(#bodyGlow)" />
+      <path d="M 235 125 L 225 145 L 165 170 C 150 180, 150 200, 155 255 L 162 335 C 165 345, 185 345, 188 335 L 195 245 L 205 255 L 205 350 L 198 460 C 196 475, 225 475, 228 460 L 238 365 L 262 365 L 272 460 C 275 475, 304 475, 302 460 L 295 350 L 295 255 L 305 245 L 312 335 C 315 345, 335 345, 338 335 L 345 255 C 350 200, 350 180, 335 170 L 275 145 L 265 125 Z" 
+            fill="url(#bodyGrad)" stroke="#818cf8" stroke-width="2" filter="url(#bodyGlow)" />
+      <ellipse cx="250" cy="235" rx="50" ry="60" fill="none" stroke="#a5b4fc" stroke-width="1.8" stroke-dasharray="6 4" opacity="0.6" filter="url(#bodyGlow)" />
+      <polygon points="250,195 275,210 275,240 250,255 225,240 225,210" fill="none" stroke="#c7d2fe" stroke-width="1" opacity="0.7" />
+      <circle cx="250" cy="275" r="8" fill="url(#goldChakra)" filter="url(#bodyGlow)" />
+      <text x="250" y="40" fill="#a5b4fc" font-size="13" font-weight="bold" text-anchor="middle" letter-spacing="1">QUY BỐI PHÚC HẬU • TRƯỜNG TỒN PHÚC ĐỨC</text>
+      <text x="250" y="475" fill="#c7d2fe" font-size="10" text-anchor="middle">Lưng rùa dày thịt • Vượt qua mọi giông bão bình an trường thọ</text>
     `;
   }
 
@@ -705,7 +814,7 @@ function generateBodySvg(type: 'long_hanh' | 'kim_hinh' | 'moc_hinh'): string {
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgContent.trim());
 }
 
-// Danh sách các loại hình tướng toàn thân chuẩn sách cổ
+// Danh sách các loại hình tướng toàn thân chuẩn sách cổ (Ngũ Hành Thể Tướng & Dị Tướng Cổ Thư)
 export const BODY_PATTERNS: BodyPattern[] = [
   {
     id: 'body_long_hanh',
@@ -761,6 +870,96 @@ export const BODY_PATTERNS: BodyPattern[] = [
 - Cực kỳ có duyên với các lĩnh vực sáng tạo, nghiên cứu, y tế, giáo dục hoặc nghệ thuật.
 - Được nhiều bạn bè tri kỷ ngưỡng mộ, danh tiếng vang xa, hậu vận an nhàn thanh nhã.`,
     svgImage: generateBodySvg('moc_hinh')
+  },
+  {
+    id: 'body_thuy_hinh',
+    name: 'Tướng Viên Mãn (Thủy Hình Đôn Hậu)',
+    bookTitle: 'Thần Tướng Toàn Thư • Thủy Tướng Tụ Phúc',
+    badge: 'Tài Lộc Hanh Thông ⭐⭐⭐',
+    badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-400/40',
+    meaning: 'Thân hình tròn trịa đẫy đà, vai tròn mông nở, bước đi đĩnh đạc, tụ tài tụ lộc',
+    keyPosture: 'Đường nét cơ thể mềm mại tròn đầy, da dẻ tươi mát, ngồi vững chãi uy nghiêm.',
+    description: 'Tướng Thủy hình chủ về người phúc hậu, tính tình bao dung độ lượng, có tài vận và duyên kinh thương đặc biệt lớn, tích lũy của cải bền vững.',
+    analysisDetail: `[HÌNH TƯỚNG HỌC LUẬN GIẢI THỦY HÌNH ĐÔN HẬU]
+1. ĐẶC ĐIỂM HÌNH TƯỚNG:
+- Khung người đẫy đà tròn trịa, các khớp xương giấu kín dưới làn da thịt hồng hào mỡ màng, sắc thái thư thái an nhàn.
+
+2. VẬN HẠN & TÀI PHÚ:
+- Có tài lộc trời ban, khéo thu phục lòng người, rất phát đạt trong buôn bán tài chính.
+- Trung niên và hậu vận đại phú quý, gia đình thịnh vượng con đàn cháu đống.`,
+    svgImage: generateBodySvg('thuy_hinh')
+  },
+  {
+    id: 'body_hoa_hinh',
+    name: 'Tướng Duệ Trí (Hỏa Hình Tinh Anh)',
+    bookTitle: 'Ma Y Thần Tướng • Hỏa Hình Phấn Phát',
+    badge: 'Dũng Khí Tiên Phong ⭐⭐⭐',
+    badgeColor: 'bg-orange-500/20 text-orange-300 border-orange-400/40',
+    meaning: 'Dáng chữ V ngược, vai rộng eo thon, bước chân nhanh nhẹn quyết liệt, khí phách tiên phong',
+    keyPosture: 'Dáng đứng dũng mãnh, các đường nét gân guốc thể thao, bước đi dứt khoát như lửa cuộn.',
+    description: 'Tướng Hỏa hình có năng lượng hành động phi thường, dám nghĩ dám làm, tư duy đột phá, luôn là ngọn đuốc tiên phong mở đường lập nghiệp.',
+    analysisDetail: `[HÌNH TƯỚNG HỌC LUẬN GIẢI HỎA HÌNH TINH ANH]
+1. ĐẶC ĐIỂM HÌNH TƯỚNG:
+- Phần thân trên nở nang, eo thắt gọn, cơ bắp săn chắc gân guốc, ánh mắt rực sáng linh hoạt.
+
+2. SỰ NGHIỆP & Ý CHÍ:
+- Tinh thần khai phá mãnh liệt, không ngại thử thách mạo hiểm, thăng tiến thần tốc khi nắm bắt thời cơ.
+- Rất hợp lĩnh vực công nghệ, khởi nghiệp, thể thao, quân sự và truyền thông.`,
+    svgImage: generateBodySvg('hoa_hinh')
+  },
+  {
+    id: 'body_tho_hinh',
+    name: 'Tướng Trung Kiên (Thổ Hình Vững Chắc)',
+    bookTitle: 'Thái Ất Thần Tướng • Thổ Đức Hậu Trọng',
+    badge: 'Điền Sản Dồi Dào ⭐⭐⭐',
+    badgeColor: 'bg-amber-600/20 text-amber-200 border-amber-500/40',
+    meaning: 'Thân hình vạm vỡ đầm chắc, vai gấu lưng dày, trầm ổn như đại địa, giữ chữ tín ngàn vàng',
+    keyPosture: 'Dáng đứng sừng sững như khối đá hoa cương, bước đi chậm rãi chắc nịch.',
+    description: 'Tướng Thổ hình mang khí chất của đất mẹ bao dung và kiên định. Người có tướng này ăn chắc mặc bền, chữ tín làm đầu, hậu vận đất đai điền sản dồi dào vô tận.',
+    analysisDetail: `[HÌNH TƯỚNG HỌC LUẬN GIẢI THỔ HÌNH VỮNG CHẮC]
+1. ĐẶC ĐIỂM HÌNH TƯỚNG:
+- Lưng dày vai nở, bước chân chắc nịch không rung lắc, phong thái điềm tĩnh vững như kiềng ba chân.
+
+2. CƠ NGHIỆP TRƯỜNG TỒN:
+- Từng bước gầy dựng cơ đồ bằng thực lực kiên trì, không ham lợi trước mắt, tích lũy tài sản khổng lồ.
+- Hậu vận đất đai nhà cửa bao la, danh tiếng trường tồn, là điểm tựa vững chãi của dòng tộc.`,
+    svgImage: generateBodySvg('tho_hinh')
+  },
+  {
+    id: 'body_hac_hinh',
+    name: 'Tướng Trường Thọ (Hạc Hình Siêu Thoát)',
+    bookTitle: 'Quản Lạc Nhân Tướng • Hạc Cốt Tiên Phong',
+    badge: 'Trường Thọ An Nhiên ⭐⭐⭐',
+    badgeColor: 'bg-teal-500/20 text-teal-300 border-teal-400/40',
+    meaning: 'Cổ cao thanh thoát, người thanh mảnh không mỡ thừa, cốt cách tiêu sái, trường thọ vô ưu',
+    keyPosture: 'Dáng đứng thẳng tắp khoan thai, bước đi nhẹ lướt như hạc nội mây ngàn.',
+    description: 'Tướng Hạc hình là một trong các dị tướng siêu phàm trong sách cổ. Người mang tướng này tính tình thanh khiết, sống thiện lương, tinh thần tự tại minh triết và hưởng đại thọ.',
+    analysisDetail: `[HÌNH TƯỚNG HỌC LUẬN GIẢI HẠC HÌNH SIÊU THOÁT]
+1. ĐẶC ĐIỂM HÌNH TƯỚNG:
+- Thân hình thanh mảnh cao ráo, xương cổ và sống lưng thẳng tắp, không có mỡ thừa, cử chỉ ung dung tự tại.
+
+2. PHÚC ĐỨC & DIÊN THỌ:
+- Ít khi vướng bận danh lợi phàm trần, tâm an vạn sự an, duyên phận gắn bó với tri thức tâm linh và nghiên cứu.
+- Sức đề kháng dẻo dai phi thường, tuổi thọ cao vượt trội, con cháu hiếu thảo hòa thuận.`,
+    svgImage: generateBodySvg('hac_hinh')
+  },
+  {
+    id: 'body_quy_boi',
+    name: 'Tướng Phúc Đức (Quy Bối Hậu Trọng)',
+    bookTitle: 'Thần Tướng Cổ Thư • Quy Bối Phúc Đức',
+    badge: 'Phúc Đức Lưu Truyền ⭐⭐⭐',
+    badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-400/40',
+    meaning: 'Lưng tròn đầy đặn như mai rùa (Quy bối), khí tức sâu dài, vững chãi vượt qua mọi giông bão',
+    keyPosture: 'Lưng dày thịt u tròn tự nhiên, ngồi vững như núi, hơi thở đan điền sâu lắng.',
+    description: 'Tướng "Quy Bối" (Lưng rùa dày thịt) là dấu hiệu của bậc đại phước đại thọ. Người mang tướng này có khả năng chống chịu nghịch cảnh vô song, biến hung thành cát, hưởng phúc trọn đời.',
+    analysisDetail: `[HÌNH TƯỚNG HỌC LUẬN GIẢI QUY BỐI PHÚC HẬU]
+1. ĐẶC ĐIỂM HÌNH TƯỚNG:
+- Vùng lưng sau gáy tròn đầy dày thịt như mai rùa, không phải gù lưng do bệnh lý mà là cốt nhục thiên phú vững chãi.
+
+2. ĐẠI PHÚC & HẬU VẬN:
+- Càng gặp sóng gió cuộc đời lại càng vững vàng tiến lên, quý nhân che chở trong gang tấc.
+- Tài lộc tích tụ càng về già càng sung túc, phúc trạch truyền đời ấm êm viên mãn.`,
+    svgImage: generateBodySvg('quy_boi')
   }
 ];
 

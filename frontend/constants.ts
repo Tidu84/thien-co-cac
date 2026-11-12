@@ -19,7 +19,7 @@ export const TAROT_DECK: TarotCard[] = [
     id: "fool",
     name: "The Fool",
     vietnameseName: "Kẻ Khờ Khạo (0)",
-    image: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=400&q=80",
+    image: "/assets/tarot/00_fool.jpg",
     keywords: ["Khởi đầu mới", "Ngây thơ", "Tự do phiêu lưu", "Tiềm năng vô hạn"],
     meaningUpright: "Khởi đầu một hành trình mới đầy hứng khởi, bước đi với niềm tin mãnh liệt vào vũ trụ.",
     meaningReversed: "Sự bất cẩn, ngây thơ thái quá, liều lĩnh không tính toán dẫn đến rủi ro."
@@ -28,7 +28,7 @@ export const TAROT_DECK: TarotCard[] = [
     id: "magician",
     name: "The Magician",
     vietnameseName: "Nhà Ảo Thuật (I)",
-    image: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=400&q=80",
+    image: "/assets/tarot/01_magician.jpg",
     keywords: ["Ý chí mạnh mẽ", "Tài năng", "Hiện thực hóa mục tiêu", "Quyền năng"],
     meaningUpright: "Bạn có đầy đủ tài nguyên và kỹ năng để biến ý tưởng thành hiện thực ngay lúc này.",
     meaningReversed: "Lợi dụng tài năng để thao túng, tài năng bị thui chột hoặc thiếu tự tin."
@@ -37,7 +37,7 @@ export const TAROT_DECK: TarotCard[] = [
     id: "high_priestess",
     name: "The High Priestess",
     vietnameseName: "Nữ Tư Tế (II)",
-    image: "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=400&q=80",
+    image: "/assets/tarot/02_high_priestess.jpg",
     keywords: ["Trực giác", "Bí ẩn tiềm thức", "Trí tuệ nội tâm", "Tĩnh lặng"],
     meaningUpright: "Hãy lắng nghe tiếng nói sâu thẳm trong tâm hồn, câu trả lời nằm ở trực giác tĩnh lặng.",
     meaningReversed: "Lờ đi linh cảm, sống quá bề nổi, bí mật giấu kín có thể gây tổn thương."
@@ -46,7 +46,7 @@ export const TAROT_DECK: TarotCard[] = [
     id: "empress",
     name: "The Empress",
     vietnameseName: "Nữ Hoàng (III)",
-    image: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&q=80",
+    image: "/assets/tarot/03_empress.jpg",
     keywords: ["Trù phú", "Nuôi dưỡng", "Sáng tạo nghệ thuật", "Tình mẫu tử"],
     meaningUpright: "Thời kỳ thu hoạch phước lành, tình cảm thăng hoa, tài lộc sinh sôi màu mỡ.",
     meaningReversed: "Tắc nghẽn sáng tạo, lệ thuộc cảm xúc hoặc bỏ bê chăm sóc bản thân."
@@ -55,37 +55,163 @@ export const TAROT_DECK: TarotCard[] = [
     id: "emperor",
     name: "The Emperor",
     vietnameseName: "Hoàng Đế (IV)",
-    image: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&q=80",
+    image: "/assets/tarot/04_emperor.jpg",
     keywords: ["Kỷ luật", "Quyền lực", "Cấu trúc vững chãi", "Bảo vệ"],
     meaningUpright: "Thiết lập trật tự, lãnh đạo quyết đoán, bảo vệ vững chắc những gì đã gầy dựng.",
     meaningReversed: "Chuyên chế độc đoán, cứng nhắc, bất an trước sự thay đổi."
   },
   {
+    id: "hierophant",
+    name: "The Hierophant",
+    vietnameseName: "Thầy Tế (V)",
+    image: "/assets/tarot/05_hierophant.jpg",
+    keywords: ["Truyền thống", "Niềm tin tâm linh", "Đạo đức", "Người dẫn đường"],
+    meaningUpright: "Tìm về các giá trị truyền thống, tìm kiếm sự chỉ dẫn từ người thầy thông thái hoặc quy chuẩn đạo đức.",
+    meaningReversed: "Bảo thủ giáo điều, giáo điều mù quáng hoặc nổi loạn chống lại các chuẩn mực cũ kỹ."
+  },
+  {
+    id: "lovers",
+    name: "The Lovers",
+    vietnameseName: "Đôi Tình Nhân (VI)",
+    image: "/assets/tarot/06_lovers.jpg",
+    keywords: ["Tình yêu đích thực", "Sự hòa hợp", "Lựa chọn ngã rẽ", "Gắn kết"],
+    meaningUpright: "Tình yêu nồng thắm, sự hòa hợp tâm hồn sâu sắc và đứng trước quyết định mang tính bước ngoặt cuộc đời.",
+    meaningReversed: "Bất hòa trong mối quan hệ, xung đột giá trị hoặc đưa ra lựa chọn sai lầm vì cảm xúc nhất thời."
+  },
+  {
+    id: "chariot",
+    name: "The Chariot",
+    vietnameseName: "Cỗ Xe Chiến Thắng (VII)",
+    image: "/assets/tarot/07_chariot.jpg",
+    keywords: ["Ý chí kiên định", "Tiến lên phía trước", "Kiểm soát", "Chiến thắng"],
+    meaningUpright: "Vượt qua mọi trở ngại bằng ý chí sắt đá, định hướng rõ ràng và giành lấy thắng lợi vẻ vang.",
+    meaningReversed: "Mất phương hướng, thiếu tự chủ, hung hăng hiếu chiến hoặc bị hoàn cảnh xô đẩy."
+  },
+  {
+    id: "strength",
+    name: "Strength",
+    vietnameseName: "Sức Mạnh Nội Tâm (VIII)",
+    image: "/assets/tarot/08_strength.jpg",
+    keywords: ["Lòng dũng cảm", "Bao dung", "Sức mạnh nhu thắng cương", "Kiên nhẫn"],
+    meaningUpright: "Thuần hóa khó khăn bằng sự dịu dàng và lòng kiên định, niềm tin vững chắc vượt qua thử thách.",
+    meaningReversed: "Tự ti, nghi ngờ bản thân, dễ bị cảm xúc giận dữ chi phối hoặc cảm thấy bất lực."
+  },
+  {
+    id: "hermit",
+    name: "The Hermit",
+    vietnameseName: "Ẩn Sĩ (IX)",
+    image: "/assets/tarot/09_hermit.jpg",
+    keywords: ["Chiêm nghiệm nội tâm", "Trí tuệ cô độc", "Ánh sáng dẫn đường", "Tự vấn"],
+    meaningUpright: "Thời gian tĩnh lặng để thấu hiểu bản thân, tìm kiếm chân lý và soi tỏ con đường tâm linh phía trước.",
+    meaningReversed: "Cô lập quá mức, xa lánh thực tại, cô đơn lạc lõng hoặc từ chối sự giúp đỡ của người khác."
+  },
+  {
     id: "wheel_of_fortune",
     name: "Wheel of Fortune",
     vietnameseName: "Bánh Xe Số Phận (X)",
-    image: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=400&q=80",
+    image: "/assets/tarot/10_wheel_of_fortune.jpg",
     keywords: ["Thời vận", "Định mệnh", "Bước ngoặt lớn", "Cơ duyên"],
     meaningUpright: "Vận may xoay vần đem đến cơ hội hiếm có, bước ngoặt định mệnh đưa bạn lên tầm cao mới.",
     meaningReversed: "Chu kỳ xui rủi tạm thời, cảm giác mất kiểm soát, cần bình tâm nhẫn nại."
   },
   {
+    id: "justice",
+    name: "Justice",
+    vietnameseName: "Công Lý (XI)",
+    image: "/assets/tarot/11_justice.jpg",
+    keywords: ["Công bằng", "Sự thật", "Nhân quả", "Trực diện"],
+    meaningUpright: "Sự thật được phơi bày, quyết định sáng suốt và nhận lại kết quả công minh tương xứng với việc đã làm.",
+    meaningReversed: "Bất công, dối trá, chối bỏ trách nhiệm hoặc phán xét phiến diện."
+  },
+  {
+    id: "hanged_man",
+    name: "The Hanged Man",
+    vietnameseName: "Kẻ Bị Treo (XII)",
+    image: "/assets/tarot/12_hanged_man.jpg",
+    keywords: ["Đổi góc nhìn", "Hy sinh có ý nghĩa", "Chờ đợi", "Giác ngộ"],
+    meaningUpright: "Tạm dừng lại để nhìn đời bằng góc nhìn mới, buông bỏ sự cố chấp để đón nhận sự thức tỉnh sâu sắc.",
+    meaningReversed: "Trì hoãn vô ích, hy sinh mù quáng, bế tắc không dám thay đổi góc nhìn."
+  },
+  {
+    id: "death",
+    name: "Death",
+    vietnameseName: "Tử Thần (XIII)",
+    image: "/assets/tarot/13_death.jpg",
+    keywords: ["Kết thúc chu kỳ", "Tái sinh", "Chuyển giao", "Lột xác"],
+    meaningUpright: "Khép lại một chương cũ đã qua để mở ra sự khởi sắc mới, quá trình lột xác tất yếu của số phận.",
+    meaningReversed: "Kháng cự sự thay đổi, níu kéo quá khứ đã tàn, sợ hãi bước sang trang mới."
+  },
+  {
+    id: "temperance",
+    name: "Temperance",
+    vietnameseName: "Tiết Độ (XIV)",
+    image: "/assets/tarot/14_temperance.jpg",
+    keywords: ["Cân bằng", "Điều hòa", "Kiên nhẫn", "Hài hòa cảm xúc"],
+    meaningUpright: "Tìm lại sự tĩnh lặng và dung hòa các mâu thuẫn, kiên nhẫn tích tiểu thành đại đem lại bình an bền vững.",
+    meaningReversed: "Mất cân bằng, thái quá cực đoan, thiếu kiên nhẫn dẫn đến đổ vỡ hòa khí."
+  },
+  {
+    id: "devil",
+    name: "The Devil",
+    vietnameseName: "Ác Quỷ (XV)",
+    image: "/assets/tarot/15_devil.jpg",
+    keywords: ["Ràng buộc vật chất", "Cám dỗ", "Mê muội", "Ảo tưởng"],
+    meaningUpright: "Cảnh báo về sự lệ thuộc, cám dỗ vật chất hay thói quen tiêu cực đang trói buộc sự tự do của bạn.",
+    meaningReversed: "Bẻ gãy xiềng xích, thức tỉnh trước ảo ảnh, tìm lại sự tự chủ và giải thoát bản thân."
+  },
+  {
+    id: "tower",
+    name: "The Tower",
+    vietnameseName: "Tòa Tháp (XVI)",
+    image: "/assets/tarot/16_tower.jpg",
+    keywords: ["Biến cố đột ngột", "Sụp đổ ảo tưởng", "Tái thiết", "Thức tỉnh"],
+    meaningUpright: "Sự sụp đổ bất ngờ của những nền móng mong manh, giải phóng bạn khỏi sự dối lừa để xây dựng lại vững chắc hơn.",
+    meaningReversed: "Cố né tránh khủng hoảng, trì hoãn sự sụp đổ tất yếu hoặc sợ hãi tái thiết."
+  },
+  {
     id: "the_star",
     name: "The Star",
     vietnameseName: "Ngôi Sao Hy Vọng (XVII)",
-    image: "https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=400&q=80",
+    image: "/assets/tarot/17_star.jpg",
     keywords: ["Hy vọng tái sinh", "Bình an tâm hồn", "Ánh sáng dẫn lối", "Chữa lành"],
-    meaningUpright: "Ánh sáng chiếu rọi xua tan giông bão, tâm hồn an lạc và niềm tin được tái sinh.",
+    meaningUpright: "Ánh sáng chiếu rọi xua tan giông bão, tâm hồn an lạc và niềm tin được tái sinh rạng rỡ.",
     meaningReversed: "Mất niềm tin, thất vọng chán nản, bi quan nhìn nhận vấn đề."
+  },
+  {
+    id: "moon",
+    name: "The Moon",
+    vietnameseName: "Mặt Trăng (XVIII)",
+    image: "/assets/tarot/18_moon.jpg",
+    keywords: ["Ảo ảnh tiềm thức", "Mơ hồ", "Nỗi sợ vô hình", "Bí ẩn"],
+    meaningUpright: "Thời kỳ sương mù dày đặc, trực giác báo động những điều chưa rõ ràng, cần cẩn trọng trước ảo giác lừa dối.",
+    meaningReversed: "Sương mù tan biến, sự thật hé lộ, vượt qua nỗi sợ hãi và bóng tối tâm lý."
   },
   {
     id: "the_sun",
     name: "The Sun",
     vietnameseName: "Mặt Trời (XIX)",
-    image: "https://images.unsplash.com/photo-1538370965046-79c0d6907d47?w=400&q=80",
+    image: "/assets/tarot/19_sun.jpg",
     keywords: ["Chiến thắng", "Hân hoan", "Rạng rỡ", "Thành công trọn vẹn"],
     meaningUpright: "Thành công vang dội, niềm vui ngập tràn, sức sống rực rỡ và sự công nhận xứng đáng.",
     meaningReversed: "Thành công bị chậm trễ, niềm vui chưa trọn vẹn hoặc tự mãn quá mức."
+  },
+  {
+    id: "judgement",
+    name: "Judgement",
+    vietnameseName: "Phán Xét (XX)",
+    image: "/assets/tarot/20_judgement.jpg",
+    keywords: ["Tiếng gọi định mệnh", "Thức tỉnh tâm linh", "Tái sinh", "Phán quyết"],
+    meaningUpright: "Nghe theo tiếng gọi sâu thẳm của sứ mệnh, tha thứ cho quá khứ và bước vào một cuộc đời tái sinh đầy ý nghĩa.",
+    meaningReversed: "Tự trách móc bản thân, do dự trước tiếng gọi mới hoặc sợ hãi bị phán xét."
+  },
+  {
+    id: "world",
+    name: "The World",
+    vietnameseName: "Thế Giới (XXI)",
+    image: "/assets/tarot/21_world.jpg",
+    keywords: ["Viên mãn", "Hoàn thành đại nghiệp", "Chu kỳ hoàn hảo", "Tự do"],
+    meaningUpright: "Thành công trọn vẹn của cả một hành trình dài, sự viên mãn cả về vật chất lẫn tinh thần, thế giới mở rộng trước mắt.",
+    meaningReversed: "Thiếu một bước cuối để về đích, cảm giác dở dang hoặc tìm đường tắt dẫn đến trì hoãn."
   }
 ];
 

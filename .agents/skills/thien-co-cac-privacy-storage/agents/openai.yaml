@@ -1,0 +1,6 @@
+interface:
+  display_name: "Thien Co Cac - Privacy and storage"
+  short_description: "Keep profiles and images stored safely on-device"
+  default_prompt: "Use $thien-co-cac-privacy-storage for this part of the Thien Co Cac project."
+policy:
+  allow_implicit_invocation: true

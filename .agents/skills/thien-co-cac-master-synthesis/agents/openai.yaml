@@ -1,0 +1,6 @@
+interface:
+  display_name: "Thien Co Cac - Master synthesis"
+  short_description: "Synthesize readings from available profile data"
+  default_prompt: "Use $thien-co-cac-master-synthesis for this part of the Thien Co Cac project."
+policy:
+  allow_implicit_invocation: true

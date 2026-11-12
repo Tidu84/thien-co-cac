@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAppVoice } from '../contexts/VoiceContext';
 import { UserDossier, DivinationRecord } from '../types';
 import { 
   buildMasterDestinySynthesis, 
@@ -47,6 +48,7 @@ export const MasterDestinySynthesisModal: React.FC<MasterSynthesisModalProps> = 
   onClose,
   onNavigateTab
 }) => {
+  const { speak, stopSpeaking: stopAppSpeaking } = useAppVoice();
   const [synthesis, setSynthesis] = useState<MasterDestinySynthesis>(() => {
     return buildMasterDestinySynthesis(dossier, allRecords);
   });
@@ -55,6 +57,15 @@ export const MasterDestinySynthesisModal: React.FC<MasterSynthesisModalProps> = 
   const [loadingAi, setLoadingAi] = useState(false);
   const [isVoiceSpeaking, setIsVoiceSpeaking] = useState(false);
   const [activeSection, setActiveSection] = useState<'overview' | 'fourStages' | 'crossDomain' | 'fullArticle' | 'remedy'>('overview');
+
+  // Khóa cuộn trang nền khi mở Đại Tổng Luận
+  useEffect(() => {
+    const orig = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = orig;
+    };
+  }, []);
 
   // Khởi tạo và nạp phân tích AI sâu rộng
   useEffect(() => {
@@ -114,45 +125,29 @@ export const MasterDestinySynthesisModal: React.FC<MasterSynthesisModalProps> = 
 
     return () => {
       isCancelled = true;
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
+      stopAppSpeaking();
     };
   }, [dossier.id, dossier.fullName, dossier.birthDate, dossier.faceImage, dossier.palmImage]);
 
-  // Giọng đọc thầy bói
+  // Giọng đọc thầy bói qua bộ quản lý giọng đọc chung.
   const speakVoice = (textToSpeak: string) => {
-    if (!('speechSynthesis' in window)) return;
-    try {
-      window.speechSynthesis.cancel();
-      const clean = textToSpeak
-        .replace(/[*#_~🪙📜👁️🃏🔮✨☯👤🌸👉❓🌱⚔️⚡👑📍]/g, ' ')
-        .replace(/═+/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
+    const clean = textToSpeak
+      .replace(/[*#_~🪙📜👁️🃏🔮✨☯👤🌸👉❓🌱⚔️⚡👑📍]/g, ' ')
+      .replace(/═+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
 
-      const utterance = new SpeechSynthesisUtterance(clean);
-      const voices = window.speechSynthesis.getVoices();
-      const viVoice = voices.find(v => v.lang.toLowerCase().includes('vi') || v.lang.toLowerCase().includes('vie'));
-      if (viVoice) utterance.voice = viVoice;
-      utterance.lang = 'vi-VN';
-      utterance.rate = 1.0;
-      utterance.pitch = 1.1;
-
-      utterance.onstart = () => setIsVoiceSpeaking(true);
-      utterance.onend = () => setIsVoiceSpeaking(false);
-      utterance.onerror = () => setIsVoiceSpeaking(false);
-
-      window.speechSynthesis.speak(utterance);
-    } catch (e) {
-      console.warn("Speech error:", e);
-    }
+    return speak(clean, {
+      lang: 'vi-VN', tone: 'mystic',
+      onStart: () => setIsVoiceSpeaking(true),
+      onEnd: () => setIsVoiceSpeaking(false),
+      onStop: () => setIsVoiceSpeaking(false),
+      onError: () => setIsVoiceSpeaking(false)
+    });
   };
 
   const stopVoice = () => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
+    stopAppSpeaking();
     setIsVoiceSpeaking(false);
   };
 
@@ -164,11 +159,11 @@ export const MasterDestinySynthesisModal: React.FC<MasterSynthesisModalProps> = 
   return (
     <div 
       onClick={onClose}
-      className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 animate-fadeIn"
+      className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-2.5 sm:p-5 animate-fadeIn overflow-y-auto overscroll-contain touch-none"
     >
       <div 
         onClick={e => e.stopPropagation()}
-        className="relative max-w-5xl w-full bg-slate-900/95 border-2 border-amber-400/70 rounded-3xl p-5 sm:p-7 shadow-[0_0_50px_rgba(245,158,11,0.25)] space-y-5 max-h-[92vh] overflow-y-auto"
+        className="relative max-w-5xl w-full my-auto bg-slate-900/95 border-2 border-amber-400/70 rounded-2xl sm:rounded-3xl p-4 sm:p-7 shadow-[0_0_50px_rgba(245,158,11,0.25)] space-y-4 sm:space-y-5 max-h-[92vh] overflow-y-auto overscroll-contain touch-pan-y"
       >
         {/* Nút đóng */}
         <button

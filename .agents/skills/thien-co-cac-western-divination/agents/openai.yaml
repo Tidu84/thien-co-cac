@@ -1,0 +1,6 @@
+interface:
+  display_name: "Thien Co Cac - Tarot and Western readings"
+  short_description: "Review Tarot spreads and crystal-ball features"
+  default_prompt: "Use $thien-co-cac-western-divination for this part of the Thien Co Cac project."
+policy:
+  allow_implicit_invocation: true

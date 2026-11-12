@@ -1,0 +1,6 @@
+interface:
+  display_name: "Thien Co Cac - Face and palm"
+  short_description: "Work on camera and face or palm readings"
+  default_prompt: "Use $thien-co-cac-face-palm for this part of the Thien Co Cac project."
+policy:
+  allow_implicit_invocation: true

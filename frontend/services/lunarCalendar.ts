@@ -17,7 +17,7 @@ export function jdFromDate(dd: number, mm: number, yy: number): number {
   }
   const a = Math.floor(y / 100);
   const b = 2 - a + Math.floor(a / 4);
-  return Math.floor(365.25 * (y + 4716)) + Math.floor(30.6001 * (m + 1)) + dd + b - 1524.5;
+  return Math.floor(365.25 * (y + 4716)) + Math.floor(30.6001 * (m + 1)) + dd + b - 1524;
 }
 
 // Chuyển Julian Day Number sang ngày Dương lịch (dd, mm, yyyy)
@@ -254,3 +254,4 @@ export function convertLunar2Solar(
     napAm: full.napAm
   };
 }
+

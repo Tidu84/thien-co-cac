@@ -12,6 +12,10 @@ interface IChingProps {
 
 export const IChingDivination: React.FC<IChingProps> = ({ initialQuestion = '', onSaveResult }) => {
   const [question, setQuestion] = useState(initialQuestion);
+
+  useEffect(() => {
+    if (initialQuestion) setQuestion(initialQuestion);
+  }, [initialQuestion]);
   const [lines, setLines] = useState<IChingLine[]>([]);
   const [tossing, setTossing] = useState(false);
   const [coinValues, setCoinValues] = useState<[number, number, number]>([3, 3, 2]); // 3: Ngửa (Dương), 2: Sấp (Âm)
@@ -188,7 +192,7 @@ export const IChingDivination: React.FC<IChingProps> = ({ initialQuestion = '', 
   };
 
   return (
-    <div className="bg-slate-900/80 border border-amber-500/30 rounded-2xl p-4 sm:p-6 shadow-2xl">
+    <div id="iching-divination" className="bg-slate-900/80 border border-amber-500/30 rounded-2xl p-4 sm:p-6 shadow-2xl">
       {/* Title */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-4 mb-4">
         <div>
@@ -432,3 +436,4 @@ export const IChingDivination: React.FC<IChingProps> = ({ initialQuestion = '', 
     </div>
   );
 };
+

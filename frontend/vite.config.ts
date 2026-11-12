@@ -14,6 +14,15 @@ export default defineConfig(({ mode }) => {
           //Target your Node.js backend
           '/api-proxy': 'http://localhost:5000',
           '/ws-proxy': {target: 'ws://localhost:5000', ws: true},
+          '/tts-stream': {
+            target: 'https://translate.google.com',
+            changeOrigin: true,
+            rewrite: (p) => p.replace(/^\/tts-stream/, '/translate_tts'),
+            headers: {
+              'Referer': '',
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+            }
+          }
         },
       },
       plugins: react(),

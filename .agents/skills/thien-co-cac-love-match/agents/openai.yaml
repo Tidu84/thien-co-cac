@@ -1,0 +1,6 @@
+interface:
+  display_name: "Thien Co Cac - Compatibility"
+  short_description: "Review two-person compatibility features"
+  default_prompt: "Use $thien-co-cac-love-match for this part of the Thien Co Cac project."
+policy:
+  allow_implicit_invocation: true

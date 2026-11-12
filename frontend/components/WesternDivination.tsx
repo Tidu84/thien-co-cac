@@ -88,7 +88,7 @@ export const WesternDivination: React.FC<WesternProps> = ({ onSaveResult }) => {
     const finalPersonName = activePersonName.trim() || 'Hữu Duyên Khách';
 
     onSaveResult({
-      title: `Tarot 3 Lá: ${picked.map(c => c.card.vietnameseName).join(' • ')}`,
+      title: `Nhà Tiên Tri Tarot: ${picked.map(c => c.card.vietnameseName).join(' • ')}`,
       personName: finalPersonName,
       summary: `Hỏi: "${tarotQuestion || 'Thông điệp vận thế'}"`,
       fullContent: aiText,
@@ -112,7 +112,7 @@ export const WesternDivination: React.FC<WesternProps> = ({ onSaveResult }) => {
     const finalPersonName = activePersonName.trim() || 'Hữu Duyên Khách';
 
     onSaveResult({
-      title: `Thần Dụ Quả Cầu Thủy Tinh`,
+      title: `Nhà Tiên Tri Pha Lê: Sấm Truyền`,
       personName: finalPersonName,
       summary: `Hỏi: "${crystalQuestion || 'Xin sấm truyền tương lai'}"`,
       fullContent: prophecy,
@@ -125,7 +125,7 @@ export const WesternDivination: React.FC<WesternProps> = ({ onSaveResult }) => {
     if (!tarotReading) return;
     const finalPersonName = activePersonName.trim() || 'Hữu Duyên Khách';
     onSaveResult({
-      title: `Tarot 3 Lá: ${selectedCards.map(c => c.card.name).join(' • ')}`,
+      title: `Nhà Tiên Tri Tarot: ${selectedCards.map(c => c.card.name).join(' • ')}`,
       personName: finalPersonName,
       summary: `Hỏi: "${tarotQuestion}"`,
       fullContent: tarotReading,
@@ -253,8 +253,8 @@ export const WesternDivination: React.FC<WesternProps> = ({ onSaveResult }) => {
                     {item.position}
                   </span>
 
-                  {/* Card Image with Flip/Glow */}
-                  <div className="relative w-44 h-64 rounded-xl overflow-hidden border-2 border-amber-400/40 shadow-2xl mb-3 bg-slate-900">
+                  {/* Card Image with Flip/Glow - Tự co giãn theo màn hình */}
+                  <div className="relative w-40 sm:w-44 aspect-[2/3] rounded-xl overflow-hidden border-2 border-amber-400/40 shadow-2xl mb-3 bg-slate-900">
                     <img
                       src={item.card.image}
                       alt={item.card.name}
@@ -269,7 +269,7 @@ export const WesternDivination: React.FC<WesternProps> = ({ onSaveResult }) => {
                     )}
                   </div>
 
-                  <h4 className="font-mystic font-bold text-base text-slate-100 text-center">
+                  <h4 className="font-serif-title font-bold text-base text-slate-100 text-center tracking-wide">
                     {item.card.vietnameseName}
                   </h4>
                   <p className="text-[11px] text-purple-300/80 italic text-center mb-2">
@@ -287,9 +287,9 @@ export const WesternDivination: React.FC<WesternProps> = ({ onSaveResult }) => {
           {tarotReading && (
             <div className="mt-6 bg-slate-950 border-2 border-purple-400/40 rounded-2xl p-5 sm:p-7 shadow-2xl">
               <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
-                <h3 className="font-mystic text-lg font-bold text-purple-300 flex items-center gap-2">
+                <h3 className="font-serif-title text-lg font-bold text-purple-300 flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-amber-400" />
-                  <span>Thông Điệp Của Người Đọc Bài Tarot AI:</span>
+                  <span>Lời Luận Giải Của Nhà Tiên Tri Tarot:</span>
                 </h3>
                 <div className="px-3.5 py-1.5 rounded-xl bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 text-xs font-semibold flex items-center gap-1.5 shadow">
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
@@ -382,9 +382,9 @@ export const WesternDivination: React.FC<WesternProps> = ({ onSaveResult }) => {
           {crystalProphecy && (
             <div className="mt-8 max-w-2xl w-full bg-slate-950 border-2 border-cyan-400/50 rounded-2xl p-6 shadow-2xl text-left">
               <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
-                <span className="font-mystic text-cyan-300 font-bold text-base flex items-center gap-1.5">
+                <span className="font-serif-title text-cyan-300 font-bold text-base flex items-center gap-1.5">
                   <span>✨</span>
-                  <span>Lời Sấm Truyền Từ Khối Pha Lê:</span>
+                  <span>Lời Sấm Truyền Của Nhà Tiên Tri Pha Lê:</span>
                 </span>
                 <div className="px-3 py-1 rounded-lg bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 text-xs font-semibold flex items-center gap-1.5 shadow">
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />

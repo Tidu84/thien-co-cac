@@ -1,0 +1,6 @@
+interface:
+  display_name: "Thien Co Cac - Reading quality"
+  short_description: "Review divination wording and AI prompts"
+  default_prompt: "Use $thien-co-cac-interpretation for this part of the Thien Co Cac project."
+policy:
+  allow_implicit_invocation: true

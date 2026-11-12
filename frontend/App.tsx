@@ -12,7 +12,11 @@ import { WesternDivination } from './components/WesternDivination';
 import { HistoryModal } from './components/HistoryModal';
 import { RecentDossiersBanner } from './components/RecentDossiersBanner';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { syncDossierRecordCounts } from './services/dossierService';
+import { AuthModal } from './components/AuthModal';
+import { AdminModal } from './components/AdminModal';
+import { getUserDossiers, syncDossierRecordCounts, syncDossiersWithCloudNow } from './services/dossierService';
+import { pushRecordToCloudAsync, deleteRecordFromCloud } from './services/cloudStorageService';
+import { pushRecordToFirebaseAsync, deleteRecordFromFirebase } from './services/firebaseService';
 import { Compass, Sparkles, Moon, Eye, Heart, Binary, Navigation } from 'lucide-react';
 
 export default function App() {
@@ -20,19 +24,49 @@ export default function App() {
   const [facePalmInitialMode, setFacePalmInitialMode] = useState<'face' | 'palm' | 'body'>('face');
   const [savedRecords, setSavedRecords] = useState<DivinationRecord[]>([]);
   const [activeQuestion, setActiveQuestion] = useState<string>('');
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showAdminModal, setShowAdminModal] = useState(false);
 
-  // Load saved fortune records from LocalStorage
+  // Load saved fortune records from LocalStorage & Cloud auto-sync
   useEffect(() => {
+    const handleAuthRequest = () => {
+      setShowAuthModal(true);
+    };
+    window.addEventListener('thien_co_cac_request_auth', handleAuthRequest);
     try {
+      // Dọn dẹp tên active nếu là hồ sơ cần xóa
+      const curName = localStorage.getItem('thien_co_cac_user_name') || '';
+      const curLower = curName.toLowerCase();
+      if (curLower.includes('tidu') || curLower.includes('dũng') || curLower.includes('dung')) {
+        localStorage.removeItem('thien_co_cac_user_name');
+      }
+
+      // Dọn dẹp và cô lập hồ sơ theo thiết bị/tài khoản (loại bỏ 63 hồ sơ của người khác)
+      getUserDossiers();
+
       const data = localStorage.getItem('thien_co_cac_records');
       if (data) {
-        const parsed = JSON.parse(data);
+        let parsed = JSON.parse(data);
+        if (Array.isArray(parsed)) {
+          parsed = parsed.filter((r: any) => {
+            const name = (r.personName || '').toLowerCase();
+            return !name.includes('tidu') && !name.includes('dũng') && !name.includes('dung');
+          });
+          localStorage.setItem('thien_co_cac_records', JSON.stringify(parsed));
+        }
         setSavedRecords(parsed);
         syncDossierRecordCounts(parsed);
       }
     } catch (e) {
       console.error("Could not load stored records:", e);
     }
+
+    // Tự động đồng bộ hồ sơ đám mây khi mở ứng dụng (chỉ khi đã đăng nhập)
+    syncDossiersWithCloudNow().catch(err => console.log("[Cloud] Initial sync silent:", err));
+
+    return () => {
+      window.removeEventListener('thien_co_cac_request_auth', handleAuthRequest);
+    };
   }, []);
 
   // Save fortune record
@@ -63,6 +97,10 @@ export default function App() {
     } catch (e) {
       console.error("Could not save to localStorage:", e);
     }
+
+    // Tự động đẩy quẻ lên Google Firebase & Cloud
+    pushRecordToFirebaseAsync(newRecord);
+    pushRecordToCloudAsync(newRecord);
   };
 
   const handleDeleteRecord = (id: string) => {
@@ -70,6 +108,8 @@ export default function App() {
     setSavedRecords(updated);
     syncDossierRecordCounts(updated);
     localStorage.setItem('thien_co_cac_records', JSON.stringify(updated));
+    deleteRecordFromFirebase(id);
+    deleteRecordFromCloud(id);
   };
 
   const handleClearAllRecords = () => {
@@ -90,7 +130,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col relative">
+    <div className="mobile-lite min-h-screen bg-slate-950 text-slate-100 flex flex-col relative">
       {/* Mystical Background Stars & Nebulas */}
       <div className="fixed inset-0 pointer-events-none opacity-40 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.25),rgba(255,255,255,0))]" />
       <div className="fixed top-1/3 -left-32 w-96 h-96 bg-purple-900/20 rounded-full blur-[120px] pointer-events-none" />
@@ -101,26 +141,16 @@ export default function App() {
         currentTab={currentTab}
         onSelectTab={setCurrentTab}
         savedCount={savedRecords.length}
+        onOpenAuth={() => setShowAuthModal(true)}
+        onOpenAdmin={() => setShowAdminModal(true)}
       />
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6 relative z-10">
-        {/* Large Interactive Anime Guide Character (Visible on Home & Guides) */}
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-5 relative z-10">
+        {/* Tab 1: Home / Sảnh Tiên Tri & Kinh Dịch */}
         {currentTab === 'home' && (
-          <AnimeGuide
-            onQuickQuestion={(q) => {
-              setActiveQuestion(q);
-            }}
-            onNavigateTab={(tab) => {
-              setCurrentTab(tab);
-            }}
-          />
-        )}
-
-        {/* Tab 1: Home / I-Ching Free Toss & Dossiers */}
-        {currentTab === 'home' && (
-          <div className="space-y-6">
-            {/* Hồ Sơ Những Người Đã Xem Trước Đó - Xuất hiện ngay khi vào app */}
+          <div className="space-y-5">
+            {/* Thanh Đương Số Đang Xem (Thu gọn 1 dòng, bấm mới xổ danh sách) */}
             <RecentDossiersBanner
               onNavigateTab={(tab, subMode) => {
                 if (tab === 'facepalm' && subMode) {
@@ -131,91 +161,25 @@ export default function App() {
               }}
             />
 
+            {/* Khung Đàm Đạo Cùng Thầy Bói / Tiên Nương */}
+            <AnimeGuide
+              onQuickQuestion={(q) => {
+                setActiveQuestion(q);
+              }}
+              onNavigateTab={(tab, subMode) => {
+                if (tab === 'facepalm' && subMode) {
+                  setFacePalmInitialMode(subMode);
+                }
+                setCurrentTab(tab);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
+
+            {/* Bàn Gieo Quẻ Kinh Dịch */}
             <IChingDivination
               initialQuestion={activeQuestion}
               onSaveResult={handleSaveRecord}
             />
-
-            {/* Quick Explore Grid to Other Features */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5 pt-4">
-              <div
-                onClick={() => setCurrentTab('tuvi')}
-                className="bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-amber-400/50 p-4 rounded-2xl cursor-pointer transition shadow-lg group"
-              >
-                <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-300 mb-2.5 group-hover:scale-110 transition">
-                  <Sparkles className="w-5 h-5" />
-                </div>
-                <h3 className="font-mystic font-bold text-amber-300 text-sm">Tử Vi Lý Số</h3>
-                <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">
-                  Đổi lịch Âm Dương thiên văn, an sao 12 cung chuẩn xác.
-                </p>
-              </div>
-
-              <div
-                onClick={() => setCurrentTab('compass')}
-                className="bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-emerald-400/50 p-4 rounded-2xl cursor-pointer transition shadow-lg group"
-              >
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-300 mb-2.5 group-hover:scale-110 transition">
-                  <Navigation className="w-5 h-5" />
-                </div>
-                <h3 className="font-mystic font-bold text-emerald-300 text-sm">La Bàn Bát Trạch</h3>
-                <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">
-                  Xoay 360°, định 4 hướng tốt, 4 hướng xấu theo Cung Phi.
-                </p>
-              </div>
-
-              <div
-                onClick={() => setCurrentTab('numerology')}
-                className="bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-indigo-400/50 p-4 rounded-2xl cursor-pointer transition shadow-lg group"
-              >
-                <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-300 mb-2.5 group-hover:scale-110 transition">
-                  <Binary className="w-5 h-5" />
-                </div>
-                <h3 className="font-mystic font-bold text-indigo-300 text-sm">Thần Số Học</h3>
-                <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">
-                  Số chủ đạo, số linh hồn, năm cá nhân và kim tự tháp.
-                </p>
-              </div>
-
-              <div
-                onClick={() => setCurrentTab('love_match')}
-                className="bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-rose-400/50 p-4 rounded-2xl cursor-pointer transition shadow-lg group"
-              >
-                <div className="w-10 h-10 rounded-xl bg-rose-500/20 flex items-center justify-center text-rose-300 mb-2.5 group-hover:scale-110 transition">
-                  <Heart className="w-5 h-5 fill-rose-300/40" />
-                </div>
-                <h3 className="font-mystic font-bold text-rose-300 text-sm">Hợp Duyên Bát Tự</h3>
-                <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">
-                  Chấm điểm Ngũ Hành, Can Chi, Cung Phi Bát Tự 2 người.
-                </p>
-              </div>
-
-              <div
-                onClick={() => setCurrentTab('facepalm')}
-                className="bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-purple-400/50 p-4 rounded-2xl cursor-pointer transition shadow-lg group"
-              >
-                <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-300 mb-2.5 group-hover:scale-110 transition">
-                  <Eye className="w-5 h-5" />
-                </div>
-                <h3 className="font-mystic font-bold text-purple-300 text-sm">Nhân Diện & Chỉ Tay</h3>
-                <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">
-                  Dùng camera soi tướng mạo Tam Đình Ngũ Quan & 3 chỉ tay.
-                </p>
-              </div>
-
-              <div
-                onClick={() => setCurrentTab('western')}
-                className="bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-cyan-400/50 p-4 rounded-2xl cursor-pointer transition shadow-lg group"
-              >
-                <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-300 mb-2.5 group-hover:scale-110 transition">
-                  <Moon className="w-5 h-5" />
-                </div>
-                <h3 className="font-mystic font-bold text-cyan-300 text-sm">Tarot & Cầu Pha Lê</h3>
-                <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">
-                  Trải bài Tarot 3 lá và nhận sấm truyền từ khối pha lê.
-                </p>
-              </div>
-            </div>
           </div>
         )}
 
@@ -278,14 +242,35 @@ export default function App() {
       <footer className="mt-auto border-t border-slate-800/80 bg-slate-950 py-6 text-center text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="text-amber-400 font-mystic text-sm">☯ Xem bói - Nhân duyên - Tiền căn - Hệ quả</span>
+            <span className="text-amber-400 font-serif-title text-sm tracking-wide">☯ Xem bói - Nhân duyên - Tiền căn - Hệ quả</span>
             <span>• Tidu Production</span>
           </div>
           <div className="flex items-center gap-2 text-[11px] text-slate-400">
-            <span>Dữ liệu lưu an toàn trên máy bạn • Bấm Ctrl+D để lưu trang</span>
+            <span>Dữ liệu đã lưu an toàn trên máy bạn</span>
           </div>
         </div>
       </footer>
+
+      {/* Auth Modal (Đăng nhập / Đăng ký) */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onSuccess={(user) => {
+          if (user.role === 'admin') {
+            setShowAdminModal(true);
+          }
+        }}
+      />
+
+      {/* Admin Management Modal (Dành riêng cho Quản Trị Viên) */}
+      {showAdminModal && (
+        <ErrorBoundary fallbackTitle="Lỗi hiển thị Bảng Quản Trị Admin">
+          <AdminModal
+            isOpen={showAdminModal}
+            onClose={() => setShowAdminModal(false)}
+          />
+        </ErrorBoundary>
+      )}
     </div>
   );
 }

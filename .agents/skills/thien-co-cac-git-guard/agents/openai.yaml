@@ -1,0 +1,6 @@
+interface:
+  display_name: "Thien Co Cac - Git guard"
+  short_description: "Protect main and prevent automatic pushes"
+  default_prompt: "Use $thien-co-cac-git-guard for this part of the Thien Co Cac project."
+policy:
+  allow_implicit_invocation: true

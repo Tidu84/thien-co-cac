@@ -1,0 +1,6 @@
+interface:
+  display_name: "Thien Co Cac - Audio"
+  short_description: "Design and update the app audio experience"
+  default_prompt: "Use $thien-co-cac-audio for this part of the Thien Co Cac project."
+policy:
+  allow_implicit_invocation: true

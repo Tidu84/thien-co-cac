@@ -1,0 +1,6 @@
+interface:
+  display_name: "Thien Co Cac - Numerology"
+  short_description: "Review numerology rules and calculations"
+  default_prompt: "Use $thien-co-cac-numerology for this part of the Thien Co Cac project."
+policy:
+  allow_implicit_invocation: true

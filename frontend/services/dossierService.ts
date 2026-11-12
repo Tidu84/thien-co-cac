@@ -1,32 +1,88 @@
 import { UserDossier, DivinationRecord } from '../types';
+import { pushDossierToCloudAsync, deleteDossierFromCloud, syncDossiersWithCloud } from './cloudStorageService';
+import { 
+  pushDossierToFirebaseAsync, 
+  deleteDossierFromFirebase, 
+  syncDossiersWithFirebase, 
+  isFirebaseConfigured 
+} from './firebaseService';
+import { getCurrentUser, getDeviceId } from './authService';
 
 const DOSSIERS_STORAGE_KEY = 'thien_co_cac_user_dossiers';
 const ACTIVE_NAME_STORAGE_KEY = 'thien_co_cac_user_name';
 
 /**
- * Lấy danh sách toàn bộ hồ sơ đương số đã lưu trữ
+ * Danh sách hồ sơ mẫu/cũ cần loại bỏ hoàn toàn
+ */
+const FORBIDDEN_NAMES = ['tidu nguyen', 'tidu nguyễn', 'nguyễn tiến dũng', 'nguyen tien dung'];
+
+export function isForbiddenDossierName(name: string): boolean {
+  if (!name) return false;
+  const n = name.trim().toLowerCase();
+  return FORBIDDEN_NAMES.some(f => n === f || n.includes(f));
+}
+
+/**
+ * Lấy danh sách toàn bộ hồ sơ đương số đã lưu trữ (Tự động dọn dẹp hồ sơ mẫu)
  */
 export function getUserDossiers(): UserDossier[] {
   try {
     const raw = localStorage.getItem(DOSSIERS_STORAGE_KEY);
-    if (!raw) {
-      // Khởi tạo hồ sơ mặc định ban đầu nếu có tên đã lưu
-      const activeName = getActiveDossierName();
-      if (activeName && activeName !== 'Hữu Duyên Khách') {
-        const initDossier: UserDossier = {
-          id: 'dos-' + Date.now(),
-          fullName: activeName,
-          createdDate: new Date().toLocaleDateString('vi-VN'),
-          lastUpdated: new Date().toLocaleString('vi-VN'),
-          recordsCount: 0
-        };
-        saveDossiers([initDossier]);
-        return [initDossier];
-      }
-      return [];
+    let list: UserDossier[] = [];
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      list = Array.isArray(parsed) ? parsed : [];
     }
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+
+    const currentUser = getCurrentUser();
+    const isAdmin = currentUser?.role === 'admin';
+    const currentDeviceId = getDeviceId();
+
+    // Dọn sạch kho tổng 63 hồ sơ đám mây còn đọng trong LocalStorage của máy người dùng/khách
+    const hasPurged = localStorage.getItem('thien_co_cac_isolated_cloud_v4');
+    if (!hasPurged) {
+      localStorage.setItem('thien_co_cac_isolated_cloud_v4', 'done');
+      if (!isAdmin) {
+        list = list.filter(d => (d as any).isLocalCreated === true && d.userId !== 'guest');
+        localStorage.setItem(DOSSIERS_STORAGE_KEY, JSON.stringify(list));
+      }
+    }
+
+    // 1. Tự động loại bỏ hồ sơ của Tidu Nguyen và Nguyễn Tiến Dũng
+    let cleanList = list.filter(d => !isForbiddenDossierName(d.fullName));
+
+    // 2. PHÂN QUYỀN VÀ BẢO MẬT HỒ SƠ:
+    // User request:
+    // - Tất cả những hồ sơ chưa đăng nhập thì CHỈ LƯU TẠI MÁY của người đó, không cho lưu cloud.
+    // - Nếu chưa đăng nhập thì KHÔNG có chức năng xem hộ, CHỈ XEM CHO MỘT MÌNH NGƯỜI ĐÓ THÔI.
+    // - Hồ sơ admin thì cần phải quản lý bảo mật, tuyệt đối không được lộ bất kỳ thông tin trên ứng dụng.
+    if (!currentUser) {
+      // Khách chưa đăng nhập: Tuyệt đối chỉ cho phép xem đúng 1 hồ sơ cá nhân ("Bản thân") lưu cục bộ trên máy!
+      const selfDossier = cleanList.find(d => d.relation === 'Bản thân' || !d.relation);
+      return selfDossier ? [selfDossier] : [];
+    }
+
+    if (!isAdmin) {
+      // Người dùng thành viên đã đăng nhập: Chỉ thấy các hồ sơ thuộc về userId của chính mình
+      cleanList = cleanList.filter(d => d.userId && d.userId === currentUser.id);
+    }
+
+    if (cleanList.length !== list.length) {
+      const deleted = list.filter(d => isForbiddenDossierName(d.fullName));
+      deleted.forEach(d => {
+        deleteDossierFromFirebase(d.id);
+        deleteDossierFromCloud(d.id);
+      });
+      saveDossiers(cleanList);
+    }
+
+    // Kiểm tra tên đang kích hoạt
+    const activeName = localStorage.getItem(ACTIVE_NAME_STORAGE_KEY) || '';
+    if (isForbiddenDossierName(activeName) || !cleanList.some(d => d.fullName.toLowerCase() === activeName.toLowerCase())) {
+      localStorage.removeItem(ACTIVE_NAME_STORAGE_KEY);
+    }
+
+    return cleanList;
   } catch (e) {
     console.error("Error reading user dossiers from storage:", e);
     return [];
@@ -52,7 +108,12 @@ function saveDossiers(dossiers: UserDossier[]): void {
  */
 export function getActiveDossierName(): string {
   try {
-    return localStorage.getItem(ACTIVE_NAME_STORAGE_KEY) || '';
+    const name = localStorage.getItem(ACTIVE_NAME_STORAGE_KEY) || '';
+    if (isForbiddenDossierName(name) || name === 'Khách Vãng Lai' || name === 'Hồ sơ trống') {
+      localStorage.removeItem(ACTIVE_NAME_STORAGE_KEY);
+      return '';
+    }
+    return name;
   } catch {
     return '';
   }
@@ -70,10 +131,23 @@ export function getActiveDossier(): UserDossier | null {
 
 /**
  * Đổi đương số đang chọn và thông báo toàn app
+ * Nếu truyền rỗng hoặc "Khách Vãng Lai", chuyển về Hồ sơ trống
  */
 export function setActiveDossierName(name: string): void {
-  const trimmed = name.trim();
-  if (!trimmed) return;
+  const trimmed = (name || '').trim();
+  if (!trimmed || trimmed === 'Khách Vãng Lai' || trimmed === 'Hồ sơ trống' || isForbiddenDossierName(trimmed)) {
+    try {
+      localStorage.removeItem(ACTIVE_NAME_STORAGE_KEY);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('thien_co_cac_active_name_changed', { 
+          detail: { name: '', dossier: null } 
+        }));
+      }
+    } catch (e) {
+      console.error("Error clearing active name:", e);
+    }
+    return;
+  }
   try {
     localStorage.setItem(ACTIVE_NAME_STORAGE_KEY, trimmed);
     if (typeof window !== 'undefined') {
@@ -92,6 +166,8 @@ export function setActiveDossierName(name: string): void {
  */
 export function upsertUserDossier(info: {
   fullName: string;
+  userId?: string;
+  relation?: string;
   gender?: 'nam' | 'nu';
   birthDate?: string;
   lunarDate?: string;
@@ -122,18 +198,66 @@ export function upsertUserDossier(info: {
     };
   }
 
+  const currentUser = getCurrentUser();
+  const currentDeviceId = getDeviceId();
   const dossiers = getUserDossiers();
+  const nowStr = new Date().toLocaleString('vi-VN');
+
+  // NẾU CHƯA ĐĂNG NHẬP:
+  // - Tuyệt đối chỉ lưu tại máy của người đó (LocalStorage)
+  // - Không có chức năng xem hộ, chỉ xem cho một mình người đó thôi (Hồ sơ "Bản thân")
+  // - Không đẩy lên Google Firebase hay Cloud
+  if (!currentUser) {
+    const existing = dossiers[0];
+    const targetDossier: UserDossier = {
+      id: existing ? existing.id : ('dos-local-' + Date.now()),
+      userId: 'local-guest',
+      deviceId: currentDeviceId,
+      relation: 'Bản thân',
+      fullName: trimmedName,
+      gender: info.gender || existing?.gender,
+      birthDate: info.birthDate || existing?.birthDate,
+      lunarDate: info.lunarDate || existing?.lunarDate,
+      birthHour: info.birthHour || existing?.birthHour,
+      canChiYear: info.canChiYear || existing?.canChiYear,
+      menhNguHanh: info.menhNguHanh || existing?.menhNguHanh,
+      notes: info.notes !== undefined ? info.notes : existing?.notes,
+      faceImage: info.faceImage || existing?.faceImage,
+      faceCapturedAt: info.faceCapturedAt || (info.faceImage ? nowStr : existing?.faceCapturedAt),
+      faceVerdict: info.faceVerdict !== undefined ? info.faceVerdict : existing?.faceVerdict,
+      palmImage: info.palmImage || existing?.palmImage,
+      palmCapturedAt: info.palmCapturedAt || (info.palmImage ? nowStr : existing?.palmCapturedAt),
+      palmSide: info.palmSide || existing?.palmSide,
+      palmCategory: info.palmCategory || existing?.palmCategory,
+      palmVerdict: info.palmVerdict !== undefined ? info.palmVerdict : existing?.palmVerdict,
+      bodyImage: info.bodyImage || existing?.bodyImage,
+      bodyCapturedAt: info.bodyCapturedAt || (info.bodyImage ? nowStr : existing?.bodyCapturedAt),
+      bodyVerdict: info.bodyVerdict !== undefined ? info.bodyVerdict : existing?.bodyVerdict,
+      createdDate: existing?.createdDate || new Date().toLocaleDateString('vi-VN'),
+      lastUpdated: nowStr,
+      isLocalCreated: true,
+      recordsCount: existing?.recordsCount || 0
+    };
+    saveDossiers([targetDossier]);
+    setActiveDossierName(trimmedName);
+    return targetDossier;
+  }
+
+  // ĐÃ ĐĂNG NHẬP: Được phép lưu nhiều hồ sơ (bản thân & xem hộ) và đồng bộ lên Cloud
+  const currentUserId = info.userId || currentUser.id;
   const existingIndex = dossiers.findIndex(
     d => d.fullName.trim().toLowerCase() === trimmedName.toLowerCase()
   );
 
-  const nowStr = new Date().toLocaleString('vi-VN');
   let targetDossier: UserDossier;
 
   if (existingIndex >= 0) {
     // Đã có -> Cập nhật thông tin mới nhất và giữ lại các ảnh đã chụp nếu không nạp ảnh mới
     targetDossier = {
       ...dossiers[existingIndex],
+      userId: currentUserId !== 'guest' ? currentUserId : (dossiers[existingIndex].userId || 'guest'),
+      deviceId: dossiers[existingIndex].deviceId || currentDeviceId,
+      relation: info.relation !== undefined ? info.relation : (dossiers[existingIndex].relation || 'Bản thân'),
       fullName: trimmedName,
       gender: info.gender || dossiers[existingIndex].gender,
       birthDate: info.birthDate || dossiers[existingIndex].birthDate,
@@ -167,6 +291,9 @@ export function upsertUserDossier(info: {
     // Người mới -> Tạo hồ sơ mới
     targetDossier = {
       id: 'dos-' + Date.now(),
+      userId: currentUserId,
+      deviceId: currentDeviceId,
+      relation: info.relation || 'Bản thân',
       fullName: trimmedName,
       gender: info.gender,
       birthDate: info.birthDate,
@@ -188,6 +315,7 @@ export function upsertUserDossier(info: {
       bodyVerdict: info.bodyVerdict,
       createdDate: new Date().toLocaleDateString('vi-VN'),
       lastUpdated: nowStr,
+      isLocalCreated: true,
       recordsCount: 0
     };
     dossiers.unshift(targetDossier);
@@ -195,6 +323,10 @@ export function upsertUserDossier(info: {
 
   saveDossiers(dossiers);
   setActiveDossierName(trimmedName);
+
+  // Đẩy lên đám mây ngầm (Ưu tiên Google Firebase trước)
+  pushDossierToFirebaseAsync(targetDossier, currentUserId);
+  pushDossierToCloudAsync(targetDossier, currentUserId);
 
   return targetDossier;
 }
@@ -207,6 +339,10 @@ export function deleteUserDossier(id: string): void {
   const filtered = dossiers.filter(d => d.id !== id);
   saveDossiers(filtered);
 
+  // Xóa trên Google Firebase & Cloud
+  deleteDossierFromFirebase(id);
+  deleteDossierFromCloud(id);
+
   const activeName = getActiveDossierName();
   const deleted = dossiers.find(d => d.id === id);
   if (deleted && deleted.fullName === activeName) {
@@ -216,6 +352,53 @@ export function deleteUserDossier(id: string): void {
       localStorage.removeItem(ACTIVE_NAME_STORAGE_KEY);
     }
   }
+}
+
+/**
+ * Kích hoạt đồng bộ Cloud ngay lập tức (Ưu tiên Google Cloud Firebase)
+ * CHỈ dành cho tài khoản ĐÃ ĐĂNG NHẬP. Chưa đăng nhập thì chỉ lưu tại máy!
+ */
+export async function syncDossiersWithCloudNow(): Promise<UserDossier[]> {
+  const currentUser = getCurrentUser();
+  if (!currentUser) {
+    // CHƯA ĐĂNG NHẬP: TUYỆT ĐỐI CHỈ LƯU TẠI MÁY CỦA NGƯỜI ĐÓ, KHÔNG SYNC CLOUD!
+    return getUserDossiers();
+  }
+
+  const localList = getUserDossiers();
+  let merged: UserDossier[] = localList;
+
+  // Ưu tiên số 1: Google Cloud Firestore
+  if (isFirebaseConfigured()) {
+    try {
+      merged = await syncDossiersWithFirebase(localList);
+    } catch (e) {
+      console.warn("[DossierService] Firebase sync notice:", e);
+    }
+  }
+
+  // Hỗ trợ thêm Supabase nếu có
+  try {
+    merged = await syncDossiersWithCloud(merged);
+  } catch (e) {
+    console.warn("[DossierService] Supabase sync notice:", e);
+  }
+
+  const isAdmin = currentUser.role === 'admin';
+  const currentDeviceId = getDeviceId();
+
+  // Đảm bảo sau khi đồng bộ, nếu KHÔNG PHẢI admin thì TUYỆT ĐỐI không lưu hay trả về hồ sơ của máy/tài khoản khác!
+  let safeMerged = (merged || []).filter(d => !isForbiddenDossierName(d.fullName));
+  if (!isAdmin) {
+    safeMerged = safeMerged.filter(d => {
+      if (currentUser && d.userId && d.userId === currentUser.id) return true;
+      if (d.deviceId && d.deviceId === currentDeviceId && (d as any).isLocalCreated === true) return true;
+      return false;
+    });
+  }
+
+  saveDossiers(safeMerged);
+  return safeMerged;
 }
 
 /**

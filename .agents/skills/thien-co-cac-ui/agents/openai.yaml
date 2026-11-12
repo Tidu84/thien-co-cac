@@ -1,0 +1,6 @@
+interface:
+  display_name: "Thien Co Cac - UI"
+  short_description: "Design consistent mobile-first app interfaces"
+  default_prompt: "Use $thien-co-cac-ui for this part of the Thien Co Cac project."
+policy:
+  allow_implicit_invocation: true

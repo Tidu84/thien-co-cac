@@ -1,0 +1,6 @@
+interface:
+  display_name: "Thien Co Cac - Fortune teller visuals"
+  short_description: "Maintain the fortune teller character artwork"
+  default_prompt: "Use $thien-co-cac-character-visuals for this part of the Thien Co Cac project."
+policy:
+  allow_implicit_invocation: true

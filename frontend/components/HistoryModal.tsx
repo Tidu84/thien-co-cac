@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { DivinationRecord } from '../types';
 import { Bookmark, Trash2, Calendar, FileText, Download, Upload, Info, HelpCircle, HardDrive, User, Search, Filter, Eye } from 'lucide-react';
 
@@ -19,6 +19,16 @@ export const HistoryModal: React.FC<HistoryProps> = ({
   const [selectedPersonFilter, setSelectedPersonFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (previewImage) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [previewImage]);
 
   // Xuất file JSON để lưu vĩnh viễn về máy
   const handleExportBackup = () => {
@@ -82,16 +92,12 @@ export const HistoryModal: React.FC<HistoryProps> = ({
             <HardDrive className="w-6 h-6 text-amber-400" />
           </div>
           <div className="space-y-2">
-            <h3 className="font-mystic font-bold text-amber-300 text-base sm:text-lg">
-              Ứng dụng và Quẻ bói của bạn được lưu ở đâu?
+            <h3 className="font-serif-title font-bold text-amber-300 text-base sm:text-lg tracking-wide">
+              Hồ sơ và Quẻ bói của bạn được lưu ở đâu?
             </h3>
             <div className="text-xs sm:text-sm text-slate-300 space-y-1.5 leading-relaxed">
               <p>
-                🌐 <strong className="text-amber-200">1. Nơi lưu ứng dụng:</strong> Toàn bộ ứng dụng này nằm trong dự án của bạn trên nền tảng <strong>Vertex AI Studio / Google Cloud</strong>. 
-                Bạn chỉ cần <span className="text-amber-300 font-bold underline">nhấn Ctrl + D (hoặc Cmd + D trên Mac)</span> để lưu Bookmark thanh dấu trang trình duyệt, hoặc mở lại lịch sử cuộc trò chuyện là vào được ngay lập tức!
-              </p>
-              <p>
-                💾 <strong className="text-amber-200">2. Nơi lưu các hồ sơ và quẻ:</strong> Được lưu tự động trong bộ nhớ cục bộ (<code className="bg-slate-950 px-1 py-0.5 rounded text-purple-300">localStorage</code>) của trình duyệt trên chính máy tính hoặc điện thoại bạn đang dùng, phân loại chính xác theo từng tên người xem!
+                💾 <strong className="text-amber-200">Lưu trữ cục bộ an toàn:</strong> Toàn bộ hồ sơ đương số và lịch sử các quẻ bói được lưu tự động trong bộ nhớ trình duyệt/thiết bị (<code className="bg-slate-950 px-1 py-0.5 rounded text-purple-300">localStorage</code>) trên chính máy bạn đang dùng, đảm bảo bảo mật riêng tư tuyệt đối và phân loại chính xác theo từng tên người xem!
               </p>
             </div>
 
@@ -130,7 +136,7 @@ export const HistoryModal: React.FC<HistoryProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
           <div className="flex items-center gap-2">
             <Bookmark className="w-5 h-5 text-amber-400" />
-            <h2 className="font-mystic text-xl sm:text-2xl font-bold text-amber-300">
+            <h2 className="font-serif-title text-xl sm:text-2xl font-bold text-amber-300 tracking-wide">
               Sổ Tay Vận Mệnh ({records.length} hồ sơ đã lưu)
             </h2>
           </div>
@@ -287,9 +293,12 @@ export const HistoryModal: React.FC<HistoryProps> = ({
       {previewImage && (
         <div 
           onClick={() => setPreviewImage(null)}
-          className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-fadeIn overflow-y-auto overscroll-contain touch-none"
         >
-          <div className="relative max-w-lg w-full bg-slate-900 border-2 border-amber-400 rounded-3xl p-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+          <div 
+            className="relative max-w-lg w-full my-auto bg-slate-900 border-2 border-amber-400 rounded-3xl p-4 shadow-2xl touch-pan-y" 
+            onClick={e => e.stopPropagation()}
+          >
             <div className="flex justify-between items-center pb-2 mb-2 border-b border-slate-800">
               <span className="text-xs font-bold text-amber-300">Ảnh Tướng Pháp Đã Chụp</span>
               <button 

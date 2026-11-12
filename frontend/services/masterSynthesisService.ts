@@ -168,8 +168,11 @@ export function buildMasterDestinySynthesis(
   const conv = convertSolar2Lunar(d, m, y);
   const lunarDateStr = `${conv.lunarDay}/${conv.lunarMonth}/${conv.lunarYear}${conv.isLeap ? ' (Nhuận)' : ''} Âm Lịch`;
 
-  // Xây dựng gói Tử Vi Đẩu Số hoàn chỉnh
+  // Xây dựng gói Tử Vi Đẩu Số hoàn chỉnh (bắt buộc phải có ngày sinh hợp lệ)
   const tuViBundle = buildTuViProfileAndLifeDossier(dossier);
+  if (!tuViBundle) {
+    throw new Error(`Hồ sơ của ${dossier.fullName} chưa có ngày tháng năm sinh hợp lệ. Vui lòng bổ sung ngày sinh trước khi lập Đại Tổng Luận.`);
+  }
   const canChiYear = tuViBundle.profile.canChiYear;
   const menhNguHanh = tuViBundle.profile.menhNguHanh;
   const cuc = tuViBundle.profile.cuc;

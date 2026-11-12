@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useAppVoice } from '../contexts/VoiceContext';
 import { analyzeFaceOrPalmWithGemini } from '../services/geminiService';
 import { 
   upsertUserDossier, 
@@ -66,6 +67,20 @@ const parseAnalysisSections = (text: string, defaultName: string): ParsedAnalysi
   return { phanLoai, dacDiem, luanBan, sucKhoe: sucKhoe || undefined, loiKhuyen };
 };
 
+// Tìm mẫu ví dụ chuẩn tương đồng nhất từ kết quả phân loại của AI
+const findMatchedSample = (text: string, mode: 'face' | 'palm' | 'body') => {
+  const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const tNorm = norm(text);
+
+  if (mode === 'face') {
+    return FACE_PATTERNS.find(p => tNorm.includes(norm(p.name)) || tNorm.includes(norm(p.id))) || null;
+  }
+  if (mode === 'palm') {
+    return PALM_PATTERNS.find(p => tNorm.includes(norm(p.name)) || tNorm.includes(norm(p.id))) || null;
+  }
+  return BODY_PATTERNS.find(p => tNorm.includes(norm(p.name)) || tNorm.includes(norm(p.id))) || null;
+};
+
 interface FacePalmProps {
   onSaveResult: (record: { 
     title: string; 
@@ -79,6 +94,7 @@ interface FacePalmProps {
 }
 
 export const FaceAndPalmReading: React.FC<FacePalmProps> = ({ onSaveResult, initialMode = 'face' }) => {
+  const { speak, stopSpeaking: stopAppSpeaking } = useAppVoice();
   const [activeMode, setActiveMode] = useState<'face' | 'palm' | 'body'>(initialMode);
 
   // Tên của đương số / người được xem tướng (đồng bộ từ hồ sơ & localStorage)
@@ -169,6 +185,16 @@ export const FaceAndPalmReading: React.FC<FacePalmProps> = ({ onSaveResult, init
   // Bộ lọc danh mục chỉ tay (Tất cả, Cổ thư cát tường, Khí chất Josef Ranald, Tướng Danh Nhân)
   const [palmCategoryFilter, setPalmCategoryFilter] = useState<'all' | 'auspicious' | 'ranald_temperament' | 'celebrity'>('all');
   const [showHistoryDocModal, setShowHistoryDocModal] = useState(false);
+
+  useEffect(() => {
+    if (showHistoryDocModal) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [showHistoryDocModal]);
 
   // Mẫu chỉ tay / tướng mặt / tướng toàn thân được chọn từ sách hướng dẫn
   const [selectedPalmPattern, setSelectedPalmPattern] = useState<PalmPattern | null>(PALM_PATTERNS[0]);
@@ -433,9 +459,9 @@ export const FaceAndPalmReading: React.FC<FacePalmProps> = ({ onSaveResult, init
   const renderPalmGuideOverlay = () => {
     const isLeft = handSide === 'left';
     return (
-      <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-between p-2.5 select-none z-20">
+      <div className="absolute inset-0 pointer-events-none select-none z-20">
         {/* Hàng đỉnh: 2 góc và huy hiệu hướng dẫn */}
-        <div className="w-full flex items-center justify-between px-1">
+        <div className="absolute top-2.5 inset-x-2.5 flex items-center justify-between px-1 z-30">
           <div className="w-5 h-5 border-t-2 border-l-2 border-amber-400 rounded-tl-lg shadow-md" />
           <div className="bg-slate-950/95 border border-amber-400/90 text-amber-300 text-[10px] sm:text-[11px] font-bold px-3 py-1 rounded-full shadow-lg backdrop-blur-md flex items-center gap-1.5">
             <Sparkle className="w-3 h-3 text-amber-400 animate-spin" />
@@ -448,126 +474,128 @@ export const FaceAndPalmReading: React.FC<FacePalmProps> = ({ onSaveResult, init
           <div className="w-5 h-5 border-t-2 border-r-2 border-amber-400 rounded-tr-lg shadow-md" />
         </div>
 
-        {/* Silhouette Bàn Tay 5 Ngón Chuẩn Xác & 3 Đại Lộ Chỉ Tay */}
-        <div className="relative w-48 h-56 sm:w-56 sm:h-64 flex items-center justify-center -my-2">
-          <svg
-            viewBox="0 0 480 540"
-            className="w-full h-full drop-shadow-[0_0_20px_rgba(245,158,11,0.65)]"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            {/* Lòng bàn tay trong gương/camera selfie:
-                - Tay Trái (Nam Tả): ngón út ở bên TRÁI, ngón cái choãi sang bên PHẢI (isLeft -> lật ngang)
-                - Tay Phải (Nữ Hữu): ngón cái choãi sang bên TRÁI, ngón út ở bên PHẢI (!isLeft -> để nguyên) */}
-            <g transform={isLeft ? "translate(480, 0) scale(-1, 1)" : undefined}>
-              {/* Vòng hào quang cổ thư */}
-              <circle cx="240" cy="275" r="195" fill="none" stroke="#d97706" strokeWidth="1" strokeDasharray="5 7" opacity="0.35" />
-
-              {/* Đường viền bàn tay 5 ngón hoàn chỉnh, sắc nét */}
-              <path
-                d="M 175 480 
-                   C 160 440, 140 370, 140 320
-                   C 140 290, 110 260, 95 240
-                   C 80 220, 90 200, 110 210
-                   C 135 220, 165 260, 175 280
-                   C 170 240, 160 170, 170 130
-                   C 175 110, 195 110, 200 130
-                   C 205 160, 210 230, 215 240
-                   C 215 200, 218 120, 230 80
-                   C 235 65, 255 65, 260 80
-                   C 265 120, 265 210, 268 240
-                   C 272 200, 280 140, 295 115
-                   C 305 100, 320 105, 322 125
-                   C 325 160, 320 225, 322 250
-                   C 328 220, 342 180, 355 170
-                   C 368 160, 378 175, 372 195
-                   C 360 230, 345 320, 340 370
-                   C 335 430, 320 480, 300 480
-                   Z"
-                fill="rgba(245, 158, 11, 0.12)"
-                stroke="#fbbf24"
-                strokeWidth="3.5"
-                strokeDasharray="7 5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="animate-pulse"
-              />
-
-              {/* Điểm định vị 5 đầu ngón tay */}
-              <circle cx="100" cy="225" r="4.5" fill="#f59e0b" opacity="0.85" />
-              <circle cx="185" cy="120" r="4.5" fill="#f59e0b" opacity="0.85" />
-              <circle cx="245" cy="73" r="5" fill="#f59e0b" opacity="0.9" />
-              <circle cx="310" cy="112" r="4.5" fill="#f59e0b" opacity="0.85" />
-              <circle cx="365" cy="180" r="4.5" fill="#f59e0b" opacity="0.85" />
-
-              {/* Ngấn Cổ Tay */}
-              <path
-                d="M 175 480 C 235 495, 275 493, 300 480"
-                stroke="#fbbf24"
-                strokeWidth="2.5"
-                strokeDasharray="4 3"
-                strokeLinecap="round"
-                fill="none"
-              />
-              <path
-                d="M 180 492 C 235 505, 270 503, 295 492"
-                stroke="#d97706"
-                strokeWidth="1.8"
-                strokeDasharray="3 3"
-                strokeLinecap="round"
-                fill="none"
-              />
-
-              {/* Sinh Đạo (Màu xanh lục - ôm gò Kim Tinh ở gốc ngón cái) */}
-              <path
-                d="M 175 280 C 160 330, 165 395, 205 460"
-                stroke="#10b981"
-                strokeWidth="4"
-                strokeDasharray="6 4"
-                strokeLinecap="round"
-                fill="none"
-              />
-
-              {/* Trí Đạo (Màu chàm tím - chạy ngang qua lòng bàn tay) */}
-              <path
-                d="M 175 280 C 220 310, 270 345, 320 375"
-                stroke="#818cf8"
-                strokeWidth="4"
-                strokeDasharray="6 4"
-                strokeLinecap="round"
-                fill="none"
-              />
-
-              {/* Tâm Đạo (Màu hồng đào - từ dưới ngón út chạy sang) */}
-              <path
-                d="M 345 280 C 300 285, 240 270, 195 260"
-                stroke="#f472b6"
-                strokeWidth="4"
-                strokeDasharray="6 4"
-                strokeLinecap="round"
-                fill="none"
-              />
-            </g>
-          </svg>
-
-          {/* Vòng tâm nhắm trung tâm */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-14 h-14 border-2 border-amber-400/60 rounded-full animate-ping" />
-            <div className="w-3 h-3 bg-amber-400 rounded-full shadow-lg" />
-          </div>
-        </div>
-
-        {/* Chú thích màu sắc 3 đường */}
-        <div className="flex items-center gap-2.5 text-[9px] sm:text-[10px] text-slate-300 bg-slate-950/85 px-3 py-0.5 rounded-full border border-slate-800 backdrop-blur-sm mb-14">
-          <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"/>Sinh Đạo</span>
-          <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-indigo-400 inline-block"/>Trí Đạo</span>
-          <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-pink-400 inline-block"/>Tâm Đạo</span>
-        </div>
-
-        {/* Khung góc đáy */}
-        <div className="w-full flex justify-between">
+        {/* Khung góc đáy (nằm trên thanh shutter) */}
+        <div className="absolute bottom-16 inset-x-2.5 flex justify-between px-1 z-10">
           <div className="w-5 h-5 border-b-2 border-l-2 border-amber-400 rounded-bl-lg shadow-md" />
           <div className="w-5 h-5 border-b-2 border-r-2 border-amber-400 rounded-br-lg shadow-md" />
+        </div>
+
+        {/* Silhouette Bàn Tay 5 Ngón Chuẩn Xác & 3 Đại Lộ Chỉ Tay ĐẶT CHÍNH GIỮA TRUNG TÂM */}
+        <div className="absolute inset-0 pt-10 pb-16 flex flex-col items-center justify-center">
+          <div className="relative w-40 h-48 sm:w-48 sm:h-56 flex items-center justify-center">
+            <svg
+              viewBox="0 0 480 540"
+              className="w-full h-full drop-shadow-[0_0_20px_rgba(245,158,11,0.65)]"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              {/* Lòng bàn tay trong gương/camera selfie:
+                  - Tay Trái (Nam Tả): ngón út ở bên TRÁI, ngón cái choãi sang bên PHẢI (isLeft -> lật ngang)
+                  - Tay Phải (Nữ Hữu): ngón cái choãi sang bên TRÁI, ngón út ở bên PHẢI (!isLeft -> để nguyên) */}
+              <g transform={isLeft ? "translate(480, 0) scale(-1, 1)" : undefined}>
+                {/* Vòng hào quang cổ thư */}
+                <circle cx="240" cy="275" r="195" fill="none" stroke="#d97706" strokeWidth="1" strokeDasharray="5 7" opacity="0.35" />
+
+                {/* Đường viền bàn tay 5 ngón hoàn chỉnh, sắc nét */}
+                <path
+                  d="M 175 480 
+                     C 160 440, 140 370, 140 320
+                     C 140 290, 110 260, 95 240
+                     C 80 220, 90 200, 110 210
+                     C 135 220, 165 260, 175 280
+                     C 170 240, 160 170, 170 130
+                     C 175 110, 195 110, 200 130
+                     C 205 160, 210 230, 215 240
+                     C 215 200, 218 120, 230 80
+                     C 235 65, 255 65, 260 80
+                     C 265 120, 265 210, 268 240
+                     C 272 200, 280 140, 295 115
+                     C 305 100, 320 105, 322 125
+                     C 325 160, 320 225, 322 250
+                     C 328 220, 342 180, 355 170
+                     C 368 160, 378 175, 372 195
+                     C 360 230, 345 320, 340 370
+                     C 335 430, 320 480, 300 480
+                     Z"
+                  fill="rgba(245, 158, 11, 0.12)"
+                  stroke="#fbbf24"
+                  strokeWidth="3.5"
+                  strokeDasharray="7 5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="animate-pulse"
+                />
+
+                {/* Điểm định vị 5 đầu ngón tay */}
+                <circle cx="100" cy="225" r="4.5" fill="#f59e0b" opacity="0.85" />
+                <circle cx="185" cy="120" r="4.5" fill="#f59e0b" opacity="0.85" />
+                <circle cx="245" cy="73" r="5" fill="#f59e0b" opacity="0.9" />
+                <circle cx="310" cy="112" r="4.5" fill="#f59e0b" opacity="0.85" />
+                <circle cx="365" cy="180" r="4.5" fill="#f59e0b" opacity="0.85" />
+
+                {/* Ngấn Cổ Tay */}
+                <path
+                  d="M 175 480 C 235 495, 275 493, 300 480"
+                  stroke="#fbbf24"
+                  strokeWidth="2.5"
+                  strokeDasharray="4 3"
+                  strokeLinecap="round"
+                  fill="none"
+                />
+                <path
+                  d="M 180 492 C 235 505, 270 503, 295 492"
+                  stroke="#d97706"
+                  strokeWidth="1.8"
+                  strokeDasharray="3 3"
+                  strokeLinecap="round"
+                  fill="none"
+                />
+
+                {/* Sinh Đạo (Màu xanh lục - ôm gò Kim Tinh ở gốc ngón cái) */}
+                <path
+                  d="M 175 280 C 160 330, 165 395, 205 460"
+                  stroke="#10b981"
+                  strokeWidth="4"
+                  strokeDasharray="6 4"
+                  strokeLinecap="round"
+                  fill="none"
+                />
+
+                {/* Trí Đạo (Màu chàm tím - chạy ngang qua lòng bàn tay) */}
+                <path
+                  d="M 175 280 C 220 310, 270 345, 320 375"
+                  stroke="#818cf8"
+                  strokeWidth="4"
+                  strokeDasharray="6 4"
+                  strokeLinecap="round"
+                  fill="none"
+                />
+
+                {/* Tâm Đạo (Màu hồng đào - từ dưới ngón út chạy sang) */}
+                <path
+                  d="M 345 280 C 300 285, 240 270, 195 260"
+                  stroke="#f472b6"
+                  strokeWidth="4"
+                  strokeDasharray="6 4"
+                  strokeLinecap="round"
+                  fill="none"
+                />
+              </g>
+            </svg>
+
+            {/* Vòng tâm nhắm trung tâm */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-12 h-12 border-2 border-amber-400/60 rounded-full animate-ping" />
+              <div className="w-2.5 h-2.5 bg-amber-400 rounded-full shadow-lg" />
+            </div>
+          </div>
+
+          {/* Chú thích màu sắc 3 đường */}
+          <div className="flex items-center gap-2 text-[9px] sm:text-[10px] text-slate-300 bg-slate-950/85 px-3 py-0.5 rounded-full border border-slate-800 backdrop-blur-sm mt-1">
+            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"/>Sinh Đạo</span>
+            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-indigo-400 inline-block"/>Trí Đạo</span>
+            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-pink-400 inline-block"/>Tâm Đạo</span>
+          </div>
         </div>
       </div>
     );
@@ -576,8 +604,9 @@ export const FaceAndPalmReading: React.FC<FacePalmProps> = ({ onSaveResult, init
   // Render khung căn chỉnh khuôn mặt (Tam Đình Ngũ Quan)
   const renderFaceGuideOverlay = () => {
     return (
-      <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-between p-2.5 select-none z-20">
-        <div className="w-full flex items-center justify-between px-1">
+      <div className="absolute inset-0 pointer-events-none select-none z-20">
+        {/* Hàng đỉnh: 2 góc và huy hiệu hướng dẫn */}
+        <div className="absolute top-2.5 inset-x-2.5 flex items-center justify-between px-1 z-30">
           <div className="w-5 h-5 border-t-2 border-l-2 border-amber-400 rounded-tl-lg shadow-md" />
           <div className="bg-slate-950/95 border border-amber-400/90 text-amber-300 text-[10px] sm:text-[11px] font-bold px-3 py-1 rounded-full shadow-lg backdrop-blur-md flex items-center gap-1.5">
             <Sparkle className="w-3 h-3 text-amber-400 animate-spin" />
@@ -586,36 +615,40 @@ export const FaceAndPalmReading: React.FC<FacePalmProps> = ({ onSaveResult, init
           <div className="w-5 h-5 border-t-2 border-r-2 border-amber-400 rounded-tr-lg shadow-md" />
         </div>
 
-        <div className="relative w-44 h-52 sm:w-52 sm:h-60 flex items-center justify-center -my-1">
-          <svg
-            viewBox="0 0 200 240"
-            className="w-full h-full drop-shadow-[0_0_15px_rgba(245,158,11,0.6)]"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            {/* Elip đầu */}
-            <ellipse cx="100" cy="115" rx="65" ry="85" stroke="#fbbf24" strokeWidth="2.5" strokeDasharray="6 4" fill="rgba(245, 158, 11, 0.06)" className="animate-pulse" />
-            {/* Trục đối xứng */}
-            <line x1="100" y1="35" x2="100" y2="195" stroke="#fbbf24" strokeWidth="1" strokeDasharray="3 3" opacity="0.6" />
-            {/* Thượng Đình (Trán) */}
-            <line x1="50" y1="85" x2="150" y2="85" stroke="#38bdf8" strokeWidth="1.5" strokeDasharray="4 3" />
-            {/* Mắt */}
-            <circle cx="78" cy="100" r="4" stroke="#fbbf24" strokeWidth="1.5" />
-            <circle cx="122" cy="100" r="4" stroke="#fbbf24" strokeWidth="1.5" />
-            {/* Trung Đình (Mũi) */}
-            <line x1="55" y1="135" x2="145" y2="135" stroke="#fbbf24" strokeWidth="1.5" strokeDasharray="4 3" />
-            {/* Hạ Đình (Miệng & Cằm) */}
-            <line x1="65" y1="165" x2="135" y2="165" stroke="#ec4899" strokeWidth="1.5" strokeDasharray="4 3" />
-          </svg>
-        </div>
-
-        <div className="text-[9px] sm:text-[10px] text-amber-300/80 bg-slate-950/85 px-3 py-0.5 rounded-full border border-slate-800 backdrop-blur-sm mb-14">
-          Xanh: Trán • Vàng: Mũi • Hồng: Miệng
-        </div>
-
-        <div className="w-full flex justify-between">
+        {/* Khung góc đáy (nằm trên thanh shutter) */}
+        <div className="absolute bottom-16 inset-x-2.5 flex justify-between px-1 z-10">
           <div className="w-5 h-5 border-b-2 border-l-2 border-amber-400 rounded-bl-lg shadow-md" />
           <div className="w-5 h-5 border-b-2 border-r-2 border-amber-400 rounded-br-lg shadow-md" />
+        </div>
+
+        {/* Silhouette KHUÔN MẶT ĐẶT CHÍNH GIỮA TRUNG TÂM */}
+        <div className="absolute inset-0 pt-10 pb-16 flex flex-col items-center justify-center">
+          <div className="relative w-38 h-46 sm:w-46 sm:h-54 flex items-center justify-center">
+            <svg
+              viewBox="0 0 200 240"
+              className="w-full h-full drop-shadow-[0_0_15px_rgba(245,158,11,0.6)]"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              {/* Elip đầu tỉ lệ chuẩn Tam Đình */}
+              <ellipse cx="100" cy="118" rx="58" ry="76" stroke="#fbbf24" strokeWidth="2.5" strokeDasharray="6 4" fill="rgba(245, 158, 11, 0.06)" className="animate-pulse" />
+              {/* Trục đối xứng */}
+              <line x1="100" y1="42" x2="100" y2="194" stroke="#fbbf24" strokeWidth="1" strokeDasharray="3 3" opacity="0.6" />
+              {/* Thượng Đình (Trán) */}
+              <line x1="52" y1="88" x2="148" y2="88" stroke="#38bdf8" strokeWidth="1.5" strokeDasharray="4 3" />
+              {/* Mắt */}
+              <circle cx="78" cy="103" r="3.8" stroke="#fbbf24" strokeWidth="1.5" />
+              <circle cx="122" cy="103" r="3.8" stroke="#fbbf24" strokeWidth="1.5" />
+              {/* Trung Đình (Mũi) */}
+              <line x1="56" y1="133" x2="144" y2="133" stroke="#fbbf24" strokeWidth="1.5" strokeDasharray="4 3" />
+              {/* Hạ Đình (Miệng & Cằm) */}
+              <line x1="66" y1="162" x2="134" y2="162" stroke="#ec4899" strokeWidth="1.5" strokeDasharray="4 3" />
+            </svg>
+          </div>
+
+          <div className="text-[9px] sm:text-[10px] text-amber-300/80 bg-slate-950/85 px-3 py-0.5 rounded-full border border-slate-800 backdrop-blur-sm mt-1">
+            Xanh: Trán • Vàng: Mũi • Hồng: Miệng
+          </div>
         </div>
       </div>
     );
@@ -624,8 +657,8 @@ export const FaceAndPalmReading: React.FC<FacePalmProps> = ({ onSaveResult, init
   // Render khung căn chỉnh toàn thân
   const renderBodyGuideOverlay = () => {
     return (
-      <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-between p-2.5 select-none z-20">
-        <div className="w-full flex items-center justify-between px-1">
+      <div className="absolute inset-0 pointer-events-none select-none z-20">
+        <div className="absolute top-2.5 inset-x-2.5 flex items-center justify-between px-1 z-30">
           <div className="w-5 h-5 border-t-2 border-l-2 border-emerald-400 rounded-tl-lg shadow-md" />
           <div className="bg-slate-950/95 border border-emerald-400/90 text-emerald-300 text-[10px] sm:text-[11px] font-bold px-3 py-1 rounded-full shadow-lg backdrop-blur-md flex items-center gap-1.5">
             <Sparkle className="w-3 h-3 text-emerald-400 animate-spin" />
@@ -634,86 +667,70 @@ export const FaceAndPalmReading: React.FC<FacePalmProps> = ({ onSaveResult, init
           <div className="w-5 h-5 border-t-2 border-r-2 border-emerald-400 rounded-tr-lg shadow-md" />
         </div>
 
-        <div className="relative w-40 h-56 sm:w-48 sm:h-64 flex items-center justify-center -my-1">
-          <svg
-            viewBox="0 0 160 260"
-            className="w-full h-full drop-shadow-[0_0_15px_rgba(16,185,129,0.6)]"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <circle cx="80" cy="30" r="15" stroke="#10b981" strokeWidth="2" strokeDasharray="4 3" fill="rgba(16, 185, 129, 0.08)" />
-            <path
-              d="M 50,55 C 60,50 100,50 110,55 L 105,125 C 105,130 95,140 80,140 C 65,140 55,130 55,125 Z"
-              stroke="#10b981"
-              strokeWidth="2"
-              strokeDasharray="5 4"
-              fill="rgba(16, 185, 129, 0.08)"
-              className="animate-pulse"
-            />
-            <path d="M 50,55 L 38,120 L 40,145" stroke="#10b981" strokeWidth="2" strokeDasharray="4 3" strokeLinecap="round" />
-            <path d="M 110,55 L 122,120 L 120,145" stroke="#10b981" strokeWidth="2" strokeDasharray="4 3" strokeLinecap="round" />
-            <path d="M 68,140 L 65,235" stroke="#10b981" strokeWidth="2.5" strokeDasharray="4 3" strokeLinecap="round" />
-            <path d="M 92,140 L 95,235" stroke="#10b981" strokeWidth="2.5" strokeDasharray="4 3" strokeLinecap="round" />
-            <line x1="30" y1="240" x2="130" y2="240" stroke="#10b981" strokeWidth="2" strokeDasharray="4 4" />
-          </svg>
-        </div>
-
-        <div className="text-[9px] sm:text-[10px] text-emerald-300/80 bg-slate-950/85 px-3 py-0.5 rounded-full border border-slate-800 backdrop-blur-sm mb-14">
-          Giữ thẳng lưng, hai tay thả lỏng tự nhiên
-        </div>
-
-        <div className="w-full flex justify-between">
+        <div className="absolute bottom-16 inset-x-2.5 flex justify-between px-1 z-10">
           <div className="w-5 h-5 border-b-2 border-l-2 border-emerald-400 rounded-bl-lg shadow-md" />
           <div className="w-5 h-5 border-b-2 border-r-2 border-emerald-400 rounded-br-lg shadow-md" />
+        </div>
+
+        <div className="absolute inset-0 pt-10 pb-16 flex flex-col items-center justify-center">
+          <div className="relative w-36 h-46 sm:w-44 sm:h-54 flex items-center justify-center">
+            <svg
+              viewBox="0 0 160 260"
+              className="w-full h-full drop-shadow-[0_0_15px_rgba(16,185,129,0.6)]"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <circle cx="80" cy="30" r="15" stroke="#10b981" strokeWidth="2" strokeDasharray="4 3" fill="rgba(16, 185, 129, 0.08)" />
+              <path
+                d="M 50,55 C 60,50 100,50 110,55 L 105,125 C 105,130 95,140 80,140 C 65,140 55,130 55,125 Z"
+                stroke="#10b981"
+                strokeWidth="2"
+                strokeDasharray="5 4"
+                fill="rgba(16, 185, 129, 0.08)"
+                className="animate-pulse"
+              />
+              <path d="M 50,55 L 38,120 L 40,145" stroke="#10b981" strokeWidth="2" strokeDasharray="4 3" strokeLinecap="round" />
+              <path d="M 110,55 L 122,120 L 120,145" stroke="#10b981" strokeWidth="2" strokeDasharray="4 3" strokeLinecap="round" />
+              <path d="M 68,140 L 65,235" stroke="#10b981" strokeWidth="2.5" strokeDasharray="4 3" strokeLinecap="round" />
+              <path d="M 92,140 L 95,235" stroke="#10b981" strokeWidth="2.5" strokeDasharray="4 3" strokeLinecap="round" />
+              <line x1="30" y1="240" x2="130" y2="240" stroke="#10b981" strokeWidth="2" strokeDasharray="4 4" />
+            </svg>
+          </div>
+
+          <div className="text-[9px] sm:text-[10px] text-emerald-300/80 bg-slate-950/85 px-3 py-0.5 rounded-full border border-slate-800 backdrop-blur-sm mt-1">
+            Giữ thẳng lưng, hai tay thả lỏng tự nhiên
+          </div>
         </div>
       </div>
     );
   };
 
-  // Phát âm giọng đọc lời bình
+  // Phát âm giọng đọc lời bình qua bộ quản lý giọng đọc chung.
   const speakVoice = (text: string) => {
-    if (!('speechSynthesis' in window)) return;
-    try {
-      window.speechSynthesis.cancel();
-      if (window.speechSynthesis.paused) {
-        window.speechSynthesis.resume();
-      }
+    const defaultName = activeMode === 'palm'
+      ? (selectedPalmPattern?.name || 'Ba Đường Tam Tài Cát Tướng')
+      : activeMode === 'face'
+      ? (selectedFacePattern?.name || 'Tướng Mặt Cát Tường')
+      : 'Cốt Cách Thanh Quý';
+    const parsed = parseAnalysisSections(text, defaultName);
+    const voiceScript = `Kết quả phân loại tướng pháp: ${parsed.phanLoai}. Đặc điểm: ${parsed.dacDiem}. Luận bàn: ${parsed.luanBan}. ${parsed.sucKhoe ? `Sức khỏe y học: ${parsed.sucKhoe}.` : ''} Lời khuyên cải vận: ${parsed.loiKhuyen}`;
+    const cleanVoiceText = voiceScript
+      .replace(/\[\/?(PHAN_LOAI|DAC_DIEM|LUAN_BAN|SUC_KHOE|LOI_KHUYEN|THỦ TƯỚNG HỌC|NHÂN DIỆN HỌC|HÌNH TƯỚNG HỌC|KHẢO CỨU Y HỌC & TƯỚNG PHÁP|KHẢO CỨU DANH NHÂN THẾ GIỚI|KHẢO CỨU CỔ THƯ OXFORD|LUẬN GIẢI|ĐẶC ĐIỂM|CÔNG DANH|TÀI LỘC|CỐT CÁCH|Ý CHÍ|TÀI CHÍNH|ĐIỀN SẢN|VẬN HẠN|SỨC KHỎE|THỌ TRƯỜNG|TÌNH CẢM|GIA ĐẠO|LINH CẢM|TÂM THỨC|SỨ MỆNH|VẬN THẾ|PHÚC PHẬN|LỜI KHUYÊN)\]/gi, ' ')
+      .replace(/[*#_~🪙📜👁️🃏🔮✨☯👤🌸👉❓\n]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
 
-      const defaultName = activeMode === 'palm' 
-        ? (selectedPalmPattern?.name || 'Ba Đường Tam Tài Cát Tướng') 
-        : activeMode === 'face' 
-        ? (selectedFacePattern?.name || 'Tướng Mặt Cát Tường')
-        : 'Cốt Cách Thanh Quý';
-      const parsed = parseAnalysisSections(text, defaultName);
-
-      const voiceScript = `Kết quả phân loại tướng pháp: ${parsed.phanLoai}. Đặc điểm: ${parsed.dacDiem}. Luận bàn: ${parsed.luanBan}. ${parsed.sucKhoe ? `Sức khỏe y học: ${parsed.sucKhoe}.` : ''} Lời khuyên cải vận: ${parsed.loiKhuyen}`;
-
-      const cleanVoiceText = voiceScript
-        .replace(/\[\/?(PHAN_LOAI|DAC_DIEM|LUAN_BAN|SUC_KHOE|LOI_KHUYEN|THỦ TƯỚNG HỌC|NHÂN DIỆN HỌC|HÌNH TƯỚNG HỌC|KHẢO CỨU Y HỌC & TƯỚNG PHÁP|KHẢO CỨU DANH NHÂN THẾ GIỚI|KHẢO CỨU CỔ THƯ OXFORD|LUẬN GIẢI|ĐẶC ĐIỂM|CÔNG DANH|TÀI LỘC|CỐT CÁCH|Ý CHÍ|TÀI CHÍNH|ĐIỀN SẢN|VẬN HẠN|SỨC KHỎE|THỌ TRƯỜNG|TÌNH CẢM|GIA ĐẠO|LINH CẢM|TÂM THỨC|SỨ MỆNH|VẬN THẾ|PHÚC PHẬN|LỜI KHUYÊN)\]/gi, ' ')
-        .replace(/[*#_~🪙📜👁️🃏🔮✨☯👤🌸👉❓\n]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-
-      const utterance = new SpeechSynthesisUtterance(cleanVoiceText);
-      const voices = window.speechSynthesis.getVoices();
-      const viVoice = voices.find(v => v.lang.toLowerCase().includes('vi') || v.lang.toLowerCase().includes('vie'));
-      if (viVoice) utterance.voice = viVoice;
-      utterance.lang = 'vi-VN';
-      utterance.rate = 1.0;
-      utterance.pitch = 1.15;
-      setIsVoiceSpeaking(true);
-      utterance.onend = () => setIsVoiceSpeaking(false);
-      utterance.onerror = () => setIsVoiceSpeaking(false);
-      window.speechSynthesis.speak(utterance);
-    } catch (e) {
-      console.warn("Speech error:", e);
-    }
+    return speak(cleanVoiceText, {
+      lang: 'vi-VN', tone: 'mystic',
+      onStart: () => setIsVoiceSpeaking(true),
+      onEnd: () => setIsVoiceSpeaking(false),
+      onStop: () => setIsVoiceSpeaking(false),
+      onError: () => setIsVoiceSpeaking(false)
+    });
   };
 
   const stopVoice = () => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
+    stopAppSpeaking();
     setIsVoiceSpeaking(false);
   };
 
@@ -858,7 +875,7 @@ export const FaceAndPalmReading: React.FC<FacePalmProps> = ({ onSaveResult, init
               </span>
               <p className="text-xs text-slate-300">
                 {userName ? (
-                  <>Đang xem hồ sơ của: <strong className="text-amber-300">{userName}</strong> <span className="text-emerald-400 font-semibold">(Tự động lưu vĩnh viễn)</span></>
+                  <>Đang xem hồ sơ của: <strong className="text-amber-300">{userName}</strong> <span className="text-emerald-400 font-semibold">(Đã đồng bộ hồ sơ)</span></>
                 ) : (
                   'Nhập họ tên để tự động đồng bộ vào toàn bộ hồ sơ & ảnh chụp'
                 )}
@@ -902,7 +919,7 @@ export const FaceAndPalmReading: React.FC<FacePalmProps> = ({ onSaveResult, init
         <div className="max-w-2xl mx-auto bg-amber-950/40 border border-amber-400/50 rounded-2xl p-3 px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-200 shadow-xl backdrop-blur-md">
           <div className="flex items-start sm:items-center gap-2.5">
             <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5 sm:mt-0 animate-pulse" />
-            <span>💡 Hồ sơ của <strong className="text-amber-300">{userName}</strong> chưa lưu ảnh {activeMode === 'face' ? 'khuôn mặt' : activeMode === 'palm' ? 'lòng bàn tay' : 'toàn thân'}. Bạn hãy bấm <strong>Mở Camera</strong> hoặc <strong>Tải ảnh lên</strong> để chụp, hệ thống sẽ tự động lưu vĩnh viễn vào hồ sơ!</span>
+            <span>💡 Hồ sơ của <strong className="text-amber-300">{userName}</strong> chưa lưu ảnh {activeMode === 'face' ? 'khuôn mặt' : activeMode === 'palm' ? 'lòng bàn tay' : 'toàn thân'}. Bạn hãy bấm <strong>Mở Camera</strong> hoặc <strong>Tải ảnh lên</strong> để tiến hành luận giải!</span>
           </div>
           <button 
             type="button"
@@ -1054,10 +1071,10 @@ export const FaceAndPalmReading: React.FC<FacePalmProps> = ({ onSaveResult, init
           </div>
         )}
 
-        {/* Viewport Box */}
+        {/* Viewport Box - Tự căn chỉnh tỷ lệ linh hoạt theo khung hình và màn hình */}
         <div 
           ref={cameraViewportRef}
-          className="relative w-full max-w-sm aspect-[4/3] sm:aspect-square max-h-[48vh] sm:max-h-[380px] rounded-2xl overflow-hidden border-2 border-amber-400/60 bg-slate-950 flex items-center justify-center shadow-2xl"
+          className="relative w-full max-w-[320px] sm:max-w-sm aspect-square max-h-[55vh] rounded-2xl overflow-hidden border-2 border-amber-400/60 bg-slate-950 flex items-center justify-center shadow-2xl"
         >
           {isCameraActive ? (
             <>
@@ -1123,7 +1140,15 @@ export const FaceAndPalmReading: React.FC<FacePalmProps> = ({ onSaveResult, init
               </div>
             </>
           ) : imagePreview ? (
-            <img src={imagePreview} alt="Preview" className="w-full h-full object-contain bg-slate-950" />
+            <img 
+              src={imagePreview} 
+              alt="Preview" 
+              className={`w-full h-full object-contain bg-slate-950 transition-transform duration-300 ${
+                activeMode === 'palm' && handSide === 'right' && (imagePreview.startsWith('data:image/svg+xml') || !!selectedPalmPattern)
+                  ? '-scale-x-100' 
+                  : ''
+              }`} 
+            />
           ) : (
             <div className="flex flex-col items-center p-6 text-center text-slate-500">
               {activeMode === 'face' ? (
@@ -1362,12 +1387,19 @@ export const FaceAndPalmReading: React.FC<FacePalmProps> = ({ onSaveResult, init
                     <img 
                       src={pattern.svgImage} 
                       alt={pattern.name} 
-                      className="w-full h-full object-contain p-1" 
+                      className={`w-full h-full object-contain p-1 transition-transform duration-300 ${
+                        handSide === 'right' ? '-scale-x-100' : ''
+                      }`} 
                     />
                     {isSelected && (
                       <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center text-xs font-extrabold shadow">
                         ✓
                       </div>
+                    )}
+                    {handSide === 'right' && (
+                      <span className="absolute bottom-1 right-1 text-[8px] font-bold px-1 py-0.5 rounded bg-slate-950/80 border border-slate-700/80 text-pink-300 shadow pointer-events-none">
+                        Tay phải
+                      </span>
                     )}
                   </div>
                   <div>
@@ -1384,30 +1416,35 @@ export const FaceAndPalmReading: React.FC<FacePalmProps> = ({ onSaveResult, init
           </div>
         )}
 
-        {/* Danh sách 3 mẫu tướng toàn thân */}
+        {/* Danh sách 8 mẫu tướng cốt cách toàn thân cổ thư */}
         {activeMode === 'body' && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {BODY_PATTERNS.map((pattern) => {
               const isSelected = selectedBodyPattern?.id === pattern.id && imagePreview === pattern.svgImage;
               return (
                 <button
                   key={pattern.id}
                   onClick={() => handleSelectBodyPattern(pattern)}
-                  className={`p-3.5 rounded-2xl border text-left flex items-center gap-3.5 transition duration-200 ${
+                  className={`p-3 rounded-2xl border text-left flex items-center gap-3 transition duration-200 ${
                     isSelected
                       ? 'bg-slate-900 border-emerald-400 ring-2 ring-emerald-400/50 shadow-xl'
                       : 'bg-slate-950/80 border-slate-800 hover:border-emerald-400/50 text-slate-300'
                   }`}
                 >
-                  <img src={pattern.svgImage} alt={pattern.name} className="w-16 h-16 rounded-xl object-contain bg-slate-900 p-1 flex-shrink-0 border border-slate-700" />
-                  <div>
-                    <div className="flex items-center gap-1.5">
+                  <img src={pattern.svgImage} alt={pattern.name} className="w-14 h-14 rounded-xl object-contain bg-slate-900 p-1 flex-shrink-0 border border-slate-700 shadow-sm" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <span className={`text-xs font-bold ${isSelected ? 'text-emerald-300' : 'text-slate-200'}`}>
                         {pattern.name}
                       </span>
                       {isSelected && <span className="text-emerald-400 text-xs font-bold">✓</span>}
                     </div>
-                    <span className="block text-[11px] text-slate-400 line-clamp-1 mt-0.5">
+                    {pattern.badge && (
+                      <span className={`inline-block text-[9px] px-1.5 py-0.5 rounded border my-0.5 ${pattern.badgeColor || 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'}`}>
+                        {pattern.badge}
+                      </span>
+                    )}
+                    <span className="block text-[11px] text-slate-400 line-clamp-1">
                       {pattern.meaning}
                     </span>
                   </div>
@@ -1417,30 +1454,35 @@ export const FaceAndPalmReading: React.FC<FacePalmProps> = ({ onSaveResult, init
           </div>
         )}
 
-        {/* Danh sách 3 mẫu tướng mặt */}
+        {/* Danh sách 8 mẫu tướng mặt cổ thư */}
         {activeMode === 'face' && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {FACE_PATTERNS.map((pattern) => {
               const isSelected = selectedFacePattern?.id === pattern.id && imagePreview === pattern.imageUrl;
               return (
                 <button
                   key={pattern.id}
                   onClick={() => handleSelectFacePattern(pattern)}
-                  className={`p-3.5 rounded-2xl border text-left flex items-center gap-3.5 transition duration-200 ${
+                  className={`p-3 rounded-2xl border text-left flex items-center gap-3 transition duration-200 ${
                     isSelected
                       ? 'bg-slate-900 border-amber-400 ring-2 ring-amber-400/50 shadow-xl'
                       : 'bg-slate-950/80 border-slate-800 hover:border-purple-400/50 text-slate-300'
                   }`}
                 >
-                  <img src={pattern.imageUrl} alt={pattern.name} className="w-14 h-14 rounded-xl object-cover flex-shrink-0 border border-slate-700" />
-                  <div>
-                    <div className="flex items-center gap-1.5">
+                  <img src={pattern.imageUrl} alt={pattern.name} className="w-14 h-14 rounded-xl object-cover flex-shrink-0 border border-slate-700 shadow-sm" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <span className={`text-xs font-bold ${isSelected ? 'text-amber-300' : 'text-slate-200'}`}>
                         {pattern.name}
                       </span>
-                      {isSelected && <span className="text-amber-400 text-xs">✓</span>}
+                      {isSelected && <span className="text-amber-400 text-xs font-bold">✓</span>}
                     </div>
-                    <span className="block text-[11px] text-slate-400 line-clamp-1 mt-0.5">
+                    {pattern.badge && (
+                      <span className={`inline-block text-[9px] px-1.5 py-0.5 rounded border my-0.5 ${pattern.badgeColor || 'bg-amber-500/10 text-amber-300 border-amber-500/30'}`}>
+                        {pattern.badge}
+                      </span>
+                    )}
+                    <span className="block text-[11px] text-slate-400 line-clamp-1">
                       {pattern.meaning}
                     </span>
                   </div>
@@ -1543,9 +1585,92 @@ export const FaceAndPalmReading: React.FC<FacePalmProps> = ({ onSaveResult, init
                     className="self-start md:self-auto px-3.5 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700/90 text-amber-300 border border-amber-400/40 text-xs font-semibold flex items-center gap-2 transition active:scale-95 shadow shrink-0"
                   >
                     <BookOpen className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Đối chiếu 12 mẫu &darr;</span>
+                    <span>Xem cẩm nang mẫu &darr;</span>
                   </button>
                 </div>
+
+                {/* Khối Đối Chiếu Mẫu Trực Quan (Khi người dùng chụp ảnh/tải ảnh) */}
+                {(() => {
+                  const matched = findMatchedSample(parsed.phanLoai + ' ' + parsed.dacDiem, activeMode);
+                  const isCustomPhoto = !selectedFacePattern && !selectedPalmPattern && !selectedBodyPattern && !!imagePreview;
+                  if (!matched) return null;
+
+                  const sampleImg = 'imageUrl' in matched 
+                    ? matched.imageUrl 
+                    : 'svgImage' in matched 
+                    ? matched.svgImage 
+                    : '';
+
+                  return (
+                    <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-emerald-950/70 via-slate-900 to-amber-950/60 border-2 border-emerald-400/70 shadow-2xl relative overflow-hidden">
+                      <div className="flex items-center justify-between gap-2 mb-3">
+                        <span className="text-xs font-black uppercase tracking-wider text-emerald-300 flex items-center gap-1.5">
+                          <Sparkles className="w-4 h-4 text-emerald-400" />
+                          <span>KẾT QUẢ ĐỐI CHIẾU MẪU CỔ THƯ TƯƠNG ĐỒNG</span>
+                        </span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">
+                          {isCustomPhoto ? '🎯 Khớp từ ảnh chụp thực tế' : '📖 Mẫu đang nghiên cứu'}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row items-center gap-4">
+                        {/* Ảnh đối chiếu trực quan */}
+                        <div className="flex items-center gap-2.5 sm:gap-3.5 shrink-0">
+                          {imagePreview && isCustomPhoto && (
+                            <div className="text-center">
+                              <span className="block text-[10px] font-semibold text-slate-300 mb-1">Ảnh thực tế của bạn</span>
+                              <img 
+                                src={imagePreview} 
+                                alt="Ảnh của bạn" 
+                                className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-amber-400/80 shadow-lg" 
+                              />
+                            </div>
+                          )}
+
+                          {isCustomPhoto && (
+                            <div className="text-center px-1">
+                              <span className="text-emerald-400 font-extrabold text-lg sm:text-2xl animate-pulse">➔</span>
+                              <span className="block text-[9px] text-emerald-300 font-bold whitespace-nowrap">Khớp mẫu</span>
+                            </div>
+                          )}
+
+                          {sampleImg && (
+                            <div className="text-center">
+                              <span className="block text-[10px] font-semibold text-emerald-300 mb-1">Mẫu chuẩn đối chiếu</span>
+                              <img 
+                                src={sampleImg} 
+                                alt={matched.name} 
+                                className={`w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover bg-slate-950 border-2 border-emerald-400/80 shadow-lg transition-transform duration-300 ${
+                                  activeMode === 'palm' && handSide === 'right' ? '-scale-x-100' : ''
+                                }`} 
+                              />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Thông tin mẫu chuẩn khớp */}
+                        <div className="flex-1 text-center sm:text-left">
+                          <div className="flex items-center gap-2 justify-center sm:justify-start flex-wrap">
+                            <h5 className="text-base sm:text-lg font-bold text-emerald-300 font-serif-title">
+                              {matched.name}
+                            </h5>
+                            {matched.badge && (
+                              <span className={`text-[10px] px-2 py-0.5 rounded-md border font-semibold ${matched.badgeColor || 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'}`}>
+                                {matched.badge}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-amber-300/90 font-medium mt-1">
+                            📜 {matched.bookTitle}
+                          </p>
+                          <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                            {matched.description}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* 4 Khối Chi Tiết */}
                 <div className="grid grid-cols-1 gap-3.5">
@@ -1605,10 +1730,10 @@ export const FaceAndPalmReading: React.FC<FacePalmProps> = ({ onSaveResult, init
       {showHistoryDocModal && (
         <div 
           onClick={() => setShowHistoryDocModal(false)}
-          className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn"
+          className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 animate-fadeIn overflow-y-auto overscroll-contain touch-none"
         >
           <div 
-            className="relative max-w-2xl w-full bg-slate-900 border-2 border-amber-400/60 rounded-3xl p-5 sm:p-7 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto"
+            className="relative max-w-2xl w-full my-auto bg-slate-900 border-2 border-amber-400/60 rounded-3xl p-5 sm:p-7 shadow-2xl space-y-4 max-h-[88vh] overflow-y-auto overscroll-contain touch-pan-y"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex justify-between items-start border-b border-slate-800 pb-3">

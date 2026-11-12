@@ -1,0 +1,6 @@
+interface:
+  display_name: "Thien Co Cac - Kinh Dich"
+  short_description: "Review coin tosses and six-line hexagrams"
+  default_prompt: "Use $thien-co-cac-kinh-dich for this part of the Thien Co Cac project."
+policy:
+  allow_implicit_invocation: true

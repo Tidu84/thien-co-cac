@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
-import { LoveMatchSummary, NumerologyReport } from '../types';
+import { LoveMatchSummary, NumerologyReport, TuViPalace, TuViProfile } from '../types';
+import { interpretTuViChartAuthentic } from './tuviInterpretationEngine';
 
 // Initialize Gemini Client with preconfigured environment key
 const getAiClient = () => {
@@ -10,11 +11,24 @@ const getAiClient = () => {
 };
 
 /**
+ * TRIẾT LÝ CỐT LÕI: CHỮA LÀNH, THẤU CẢM & TIẾP THÊM ĐỘNG LỰC SỐNG
+ * Đa phần người tìm đến huyền học đều đang có nỗi niềm trăn trở, bế tắc hoặc mất phương hướng.
+ * Mọi lời luận giải phải giữ chuẩn học thuật nhưng luôn hướng về ánh sáng, hy vọng và nghị lực.
+ */
+const HEALING_AND_HOPE_DIRECTIVE = `
+NGUYÊN TẮC TÂM LÝ & ĐẠO ĐỨC LUẬN ĐOÁN (BẮT BUỘC TUÂN THỦ):
+1. THẤU CẢM & CHỮA LÀNH: Hiểu rằng người tìm đến xem quẻ/lá số thường đang có nỗi niềm trăn trở, mệt mỏi hoặc đứng trước ngã rẽ cuộc đời. Hãy trò chuyện và luận giải như một người tri kỷ thông tuệ, ấm áp, nâng đỡ tinh thần.
+2. CHUYỂN HUNG HÓA CÁT - BĨ CỰC THÁI LAI: Dù lá số có sao xấu, quẻ có hào động thử thách hay tuổi tác có phần xung khắc, TUYỆT ĐỐI KHÔNG phán bi quan, tuyệt vọng hay hù dọa tai ương. Hãy giải thích thử thách chỉ là giai đoạn "lửa thử vàng", là bước lùi lấy đà để đón vận hội mới tốt đẹp hơn.
+3. TIẾP THÊM ĐỘNG LỰC & HY VỌNG: Luôn làm nổi bật điểm mạnh, giá trị đáng quý và nội lực tiềm ẩn của đương số. Kết thúc bằng những lời khích lệ thiết thực, giúp họ tin vào bản thân ("Đức năng thắng số, tâm sáng ắt vạn sự hanh thông") và cảm thấy nhẹ lòng, có thêm động lực vươn lên trong cuộc sống.`;
+
+/**
  * Trò chuyện trực tiếp cùng Thầy Bói Giang Hồ (Xem tướng đoán mệnh)
  */
 export async function chatWithLinhNhi(
   chatHistory: { role: 'user' | 'model'; text: string }[],
-  userMessage: string
+  userMessage: string,
+  persona: 'male' | 'female' = 'male',
+  userGender?: 'nam' | 'nu'
 ): Promise<{ reply: string; mood: 'mysterious' | 'happy' | 'thoughtful' | 'divine' | 'concerned'; suggestedTab?: 'iching' | 'tuvi' | 'love_match' | 'numerology' | 'facepalm' | 'western' }> {
   try {
     const ai = getAiClient();
@@ -24,7 +38,13 @@ export async function chatWithLinhNhi(
       parts: [{ text: msg.text }]
     }));
 
-    const systemInstruction = `Bạn là một Thầy Bói Giang Hồ phong cách truyện tranh / kiếm hiệp Á Đông, tự xưng là "Ta", gọi người đối thoại là "bạn" hoặc "huynh đài/tiểu thư".
+    const userAddress = persona === 'female' && userGender === 'nam'
+      ? 'tiên sinh'
+      : userGender === 'nam' ? 'thiện nam' : userGender === 'nu' ? 'nữ thí chủ' : 'bạn hữu';
+    const personaIdentity = persona === 'female'
+      ? `Bạn là Nữ Thầy Bói Nguyệt Cơ Tiên Nương, phong cách huyền bí cổ phong, dịu dàng và cuốn hút. Tự xưng là "Ta" hoặc "Thiếp", gọi người xem là "${userAddress}". Giữ lời nói tự nhiên, không tán tỉnh quá mức.`
+      : `Bạn là Thiên Cơ Chân Nhân, Thầy Bói Giang Hồ phong cách truyện tranh / kiếm hiệp Á Đông. Tự xưng là "Ta" hoặc "Bần đạo", gọi người xem là "${userAddress}".`;
+    const systemInstruction = `${personaIdentity}
 
 QUY TẮC ĐẶC BIỆT KHI ĐỐI THOẠI:
 1. BAN ĐẦU:
@@ -46,8 +66,9 @@ QUY TẮC ĐẶC BIỆT KHI ĐỐI THOẠI:
 4. NẾU NGƯỜI DÙNG NÓI CHƯA BIẾT CHỌN GÌ, PHÂN VÂN, HOẶC MUỐN XEM CÁT HUNG NHANH:
    Khuyên ngay: "Nếu vậy, hãy gieo một quẻ Kinh Dịch càn khôn dưới đây để ta xem trước điềm cát hay hung sắp tới cho bạn nhé!" và gán [TAB: iching].
 
-5. PHONG THÁI:
-   Hào sảng, gãy gọn, dứt khoát, không lan man, bí ẩn nhưng thân thiện, hướng thiện.
+5. PHONG THÁI & TÂM LÝ CHỮA LÀNH:
+   Hào sảng, ấm áp, thấu cảm sâu sắc. Nếu thấy người dùng đang buồn bã, bế tắc, thất tình hay lo âu về tiền bạc/cuộc sống, hãy an ủi, khích lệ họ trước tiên để họ thấy nhẹ lòng và có hy vọng, rồi mới dẫn dắt vào quẻ bói.
+${HEALING_AND_HOPE_DIRECTIVE}
 
 Định dạng trả về:
 Hãy trả lời tự nhiên (khoảng 60 - 120 từ).
@@ -95,7 +116,9 @@ Cuối câu trả lời, hãy đính kèm một dòng tag:
   } catch (error) {
     console.error("Chat error:", error);
     return {
-      reply: "Được thôi! Ta có thể xem qua Tử Vi, Thần Số Học Pythagoras, xem chỉ tay tướng mặt, bói bài Tarot hoặc chấm điểm tương hợp tình duyên 2 người. Nếu bạn chưa chọn được, hãy gieo quẻ Kinh Dịch để xem trước cát/hung sắp tới nhé!",
+      reply: persona === 'female'
+        ? "Được thôi! Thiếp có thể cùng bạn hữu xem Tử Vi, Thần Số Học, Chỉ Tay, Tướng Mạo hoặc gieo một quẻ Kinh Dịch để soi đường sắp tới."
+        : "Được thôi! Bần đạo có thể giúp bạn hữu xem Tử Vi, Thần Số Học, Chỉ Tay, Tướng Mạo hoặc gieo một quẻ Kinh Dịch để soi đường sắp tới.",
       mood: 'happy',
       suggestedTab: 'iching'
     };
@@ -119,11 +142,12 @@ Quẻ nhận được: Quẻ số ${hexagramName}
 Ý nghĩa cơ bản: ${meaning}
 Các hào từ đáy lên đỉnh: ${lines.join(', ')}
 
-Hãy phân tích quẻ này thật sâu sắc theo phong cách cổ phong uy nghi nhưng dễ hiểu:
-1. Tổng quan vận thế (Thời - Vị - Trung - Chính).
-2. Lời giải trực tiếp cho việc người hỏi đang băn khoăn (Tài lộc, Sự nghiệp, Tình cảm, Sức khỏe).
-3. Hào động / lời khuyên đắc sách: Nên hành động thế nào để tránh hung tìm cát, hợp lẽ Đạo Trời.
-Hãy trả lời khoảng 250 - 350 từ bằng tiếng Việt trang nhã, ấm áp, sâu sắc.`;
+Hãy phân tích quẻ này thật sâu sắc theo phong cách cổ phong uy nghi nhưng dễ hiểu, ấm áp và truyền động lực:
+1. Tổng quan vận thế (Thời - Vị - Trung - Chính): Nhấn mạnh cơ hội chuyển mình và ánh sáng hy vọng phía trước.
+2. Lời giải trực tiếp cho việc người hỏi đang băn khoăn (Tài lộc, Sự nghiệp, Tình cảm, Sức khỏe): Giúp họ tháo gỡ nút thắt tâm lý.
+3. Hào động / lời khuyên đắc sách: Hướng dẫn hành động tích cực để chuyển khó khăn thành bàn đạp vươn lên.
+${HEALING_AND_HOPE_DIRECTIVE}
+Hãy trả lời khoảng 250 - 350 từ bằng tiếng Việt trang nhã, ấm áp, sâu sắc và tiếp thêm niềm tin cuộc sống.`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
@@ -155,19 +179,85 @@ export async function analyzeTuViWithGemini(
   cuc: string,
   canChiDay: string,
   canChiMonth: string,
-  canChiYear: string
+  canChiYear: string,
+  palaceSummary = '',
+  palacesData?: TuViPalace[]
 ): Promise<string> {
+  const profile: TuViProfile = {
+    fullName: name || 'Đương số',
+    gender: (gender === 'nu' ? 'nu' : 'nam'),
+    solarDate: solarDate || '1990-01-01',
+    lunarDate: lunarDate || '',
+    birthHour: birthHour || 'Thìn (07h00 - 08h59)',
+    calendarType: 'solar',
+    canChiYear: canChiYear || 'Canh Ngọ',
+    canChiMonth: canChiMonth || '',
+    canChiDay: canChiDay || '',
+    menhNguHanh: menhNguHanh || 'Lộ Bàng Thổ',
+    cuc: cuc || 'Thổ Ngũ Cục',
+    cungMenh: cungMenh || 'Thìn',
+    cungThan: cungThan || 'Tuất'
+  };
+
+  const getAuthenticFallback = () => {
+    const interp = interpretTuViChartAuthentic(profile, palacesData);
+    return `[THAY_PHAN]
+${interp.thayPhan}
+[/THAY_PHAN]
+[BAN_MENH]
+${interp.banMenh}
+[/BAN_MENH]
+[CONG_DANH]
+${interp.congDanh}
+[/CONG_DANH]
+[TINH_DUYEN]
+${interp.tinhDuyen}
+[/TINH_DUYEN]
+[VAN_HAN]
+${interp.vanHan}
+[/VAN_HAN]
+[DAI_VAN_TIEN]
+${interp.daiVanTien}
+[/DAI_VAN_TIEN]
+[DAI_VAN_DUONG_THOI]
+${interp.daiVanDuongThoi}
+[/DAI_VAN_DUONG_THOI]
+[DAI_VAN_BUOC_NGOAT]
+${interp.daiVanBuocNgoat}
+[/DAI_VAN_BUOC_NGOAT]
+[TIEU_VAN]
+${interp.tieuVan}
+[/TIEU_VAN]
+[HOA_GIAI]
+${interp.hoaGiai}
+[/HOA_GIAI]
+[NHAN_XET]
+${interp.nhanXet}
+[/NHAN_XET]`;
+  };
+
   try {
     const ai = getAiClient();
+    const currentYear = new Date().getFullYear();
+    const nextYear = currentYear + 1;
+    const birthYear = Number(solarDate.slice(0, 4));
+    const currentAge = Number.isFinite(birthYear) && birthYear > 0 ? currentYear - birthYear : undefined;
+    const decadeStart = currentAge === undefined ? 30 : Math.floor(currentAge / 10) * 10;
+    const previousDecade = `${Math.max(0, decadeStart - 10)}-${Math.max(9, decadeStart - 1)}`;
+    const currentDecade = `${decadeStart}-${decadeStart + 9}`;
+    const nextDecade = `${decadeStart + 10}-${decadeStart + 19}`;
     const prompt = `Bạn là một Thầy Bói Giang Hồ đại sư Tử Vi Đẩu Số. Hãy luận giải lá số cho:
 - Đương số: ${name} (${gender === 'nam' ? 'Nam' : 'Nữ'})
 - Sinh Dương lịch: ${solarDate} | Âm lịch: ${lunarDate}
 - Năm ${canChiYear} • Tháng ${canChiMonth} • Ngày ${canChiDay} • Giờ ${birthHour}
 - Bản Mệnh: ${menhNguHanh} | Cục: ${cuc}
 - Cung Mệnh: ${cungMenh} | Cung Thân: ${cungThan}
+- Sao tại 12 cung đã an: ${palaceSummary || 'Chưa có dữ liệu sao chi tiết'}
+- Năm hiện tại: ${currentYear}; năm kế tiếp: ${nextYear}; tuổi dương hiện tại ước tính: ${currentAge ?? 'chưa rõ'}
 
 YÊU CẦU ĐẶC BIỆT:
-- Không viết bài văn dài lê thê! Phải chia thành 6 phần ngắn gọn, súc tích, sắc bén như một thầy bói giang hồ bấm ngón tay phán.
+- Không viết bài văn dài lê thê! Chia thành các phần ngắn gọn, súc tích, dễ nghe.
+- Luận vận hạn theo hướng tham khảo và tự chiêm nghiệm; không khẳng định tai họa, không bịa tháng cụ thể khi thiếu dữ liệu, không khuyên cúng bái hay chi tiền giải hạn.
 - BẮT BUỘC dùng đúng các thẻ định danh sau để phân chia nội dung:
 
 [THAY_PHAN]
@@ -187,12 +277,34 @@ YÊU CẦU ĐẶC BIỆT:
 [/TINH_DUYEN]
 
 [VAN_HAN]
-(2-3 câu về vận hạn năm nay, tháng nào cần cẩn trọng tiểu nhân hao tài, tháng nào hanh thông)
+(2-3 câu về xu hướng chung của ${currentYear}; nêu cơ hội và điều nên cẩn trọng, không phán chắc tháng cụ thể)
 [/VAN_HAN]
 
+[DAI_VAN_TIEN]
+(Một giai đoạn đại vận trước tuổi hiện tại: ghi khoảng tuổi 10 năm và 1-2 câu về cơ hội/thử thách; nếu đương số còn trẻ, chọn giai đoạn sắp tới thay vì bịa quá khứ)
+[/DAI_VAN_TIEN]
+
+[DAI_VAN_DUONG_THOI]
+(Giai đoạn 10 năm bao quanh tuổi hiện tại ${currentAge ?? 'chưa rõ'} hoặc giai đoạn gần nhất; ghi rõ khoảng tuổi và trọng tâm cần xây dựng)
+[/DAI_VAN_DUONG_THOI]
+
+[DAI_VAN_BUOC_NGOAT]
+(Một giai đoạn 10 năm khác có ý nghĩa bước ngoặt; ghi khoảng tuổi và 1-2 câu. Các giai đoạn phải hợp lý, tránh lời phán tuyệt đối)
+[/DAI_VAN_BUOC_NGOAT]
+
+[TIEU_VAN]
+(Luận 12-24 tháng tới, tập trung ${currentYear} và ${nextYear}: 2-3 câu nêu điểm sáng có thể chủ động nắm bắt và cạm bẫy thực tế nên tránh về tiền bạc, thị phi, sức khỏe hoặc tình duyên. Không khẳng định sự kiện chắc chắn)
+[/TIEU_VAN]
+
+[HOA_GIAI]
+(1-2 câu ngắn, thực tế, tích cực theo tinh thần đức năng thắng số; khuyên hành động cụ thể, không mê tín dị đoan)
+[/HOA_GIAI]
+
 [NHAN_XET]
-(Lời thầy bói nhận xét tổng kết và 1 bí quyết phong thủy cải mệnh thiết thực)
-[/NHAN_XET]`;
+(Lời thầy bói nhận xét tổng kết đầy ấm áp, khích lệ tinh thần và 1 bí quyết cải mệnh thiết thực giúp đương số thêm vững tin yêu đời)
+[/NHAN_XET]
+
+${HEALING_AND_HOPE_DIRECTIVE}`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
@@ -202,48 +314,10 @@ YÊU CẦU ĐẶC BIỆT:
       }
     });
 
-    return response.text || `[THAY_PHAN]
-Bản mệnh kiên cường vượt bão giông,
-Tiền tài danh vọng ắt hanh thông.
-Tâm thiện tích đức đời hưng thịnh,
-Phúc lộc tràn trề tựa biển Đông.
-[/THAY_PHAN]
-[BAN_MENH]
-Bản mệnh ${menhNguHanh} tọa thủ ${cungMenh}, đắc ${cuc}. Bạn là người có nội tâm sâu sắc, có ý chí kiên định tựa vàng ròng, làm việc có trách nhiệm và chữ tín.
-[/BAN_MENH]
-[CONG_DANH]
-Sự nghiệp hợp với vai trò quản lý, kinh doanh độc lập hoặc chuyên môn cao. Trung vận tiền bạc hanh thông, càng tích lũy càng sung túc.
-[/CONG_DANH]
-[TINH_DUYEN]
-Duyên nợ tiền định cần sự kiên nhẫn và thấu hiểu. Bạn đời là người biết chia sẻ, đồng lòng cùng bạn vượt qua mọi thử thách.
-[/TINH_DUYEN]
-[VAN_HAN]
-Năm nay thiên thời chuyển biến cát lợi. Cần cẩn trọng giấy tờ tài chính vào tháng giữa năm, cuối năm đại cát đại lợi.
-[/VAN_HAN]
-[NHAN_XET]
-Thầy nhận xét: Số này hậu vận an nhàn, có quý nhân phù trợ. Hãy giữ tâm sáng, năng làm việc thiện thì hung hóa cát, vạn sự bình an.
-[/NHAN_XET]`;
+    return response.text || getAuthenticFallback();
   } catch (error) {
-    console.error("Gemini TuVi error:", error);
-    return `[THAY_PHAN]
-Bản mệnh kiên cường vượt bão giông,
-Tiền tài danh vọng ắt hanh thông.
-[/THAY_PHAN]
-[BAN_MENH]
-Bản mệnh ${menhNguHanh} (${canChiYear}) tọa thủ ${cungMenh}. Bạn là người có nội lực vững vàng, trọng tín nghĩa.
-[/BAN_MENH]
-[CONG_DANH]
-Sự nghiệp cần kiên trì, trung vận và hậu vận tích lũy tài sản rất tốt.
-[/CONG_DANH]
-[TINH_DUYEN]
-Hôn nhân gia đạo hòa thuận khi hai bên biết lắng nghe và tôn trọng nhau.
-[/TINH_DUYEN]
-[VAN_HAN]
-Năm nay vận khí tương đối ổn định, cẩn thận chi tiêu vào mùa hạ, mùa đông gặt hái thành quả.
-[/VAN_HAN]
-[NHAN_XET]
-Thầy nhận xét: Đức năng thắng số, tâm an thì vạn sự ắt lành.
-[/NHAN_XET]`;
+    console.error("Gemini TuVi error, switching to authentic ancient TuVi engine:", error);
+    return getAuthenticFallback();
   }
 }
 
@@ -271,9 +345,10 @@ Câu hỏi cần giải đáp chuyên sâu:
 "${question}"
 
 YÊU CẦU TRẢ LỜI:
-- Trả lời bằng phong thái Thầy Bói Giang Hồ: hào sảng, sắc bén, chân thành, gãy gọn (khoảng 70 - 130 từ).
-- Luận rõ thời cơ, nguy cơ và đưa ra 1 lời khuyên thực tế để chuyển hung hóa cát.
-- Có thể dùng 1 câu khẩu quyết hoặc vần điệu ngắn gọn cuối câu.`;
+- Trả lời bằng phong thái Thầy Bói Giang Hồ: hào sảng, sắc bén, chân thành, ấm áp và tiếp thêm động lực (khoảng 70 - 130 từ).
+- Luận rõ thời cơ, cách vượt qua thử thách và đưa ra 1 lời khuyên thực tế để chuyển hung hóa cát, giúp đương số vững tâm.
+- Có thể dùng 1 câu khẩu quyết hoặc vần điệu ngắn gọn khích lệ tinh thần cuối câu.
+${HEALING_AND_HOPE_DIRECTIVE}`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
@@ -333,7 +408,7 @@ export async function analyzeNumerologyWithGemini(report: NumerologyReport): Pro
       .map(p => `- Đỉnh cao ${p.peakNumber} (Năm ${p.year}, ${p.age} tuổi): Mang năng lượng số ${p.number} -> ${p.meaning}`)
       .join('\n');
 
-    const prompt = `Bạn là một Chuyên Gia Thần Số Học Pythagoras (Numerology Master) chuẩn mực và giàu thấu cảm.
+    const prompt = `Bạn là một Nhà Tiên Tri Thần Số Học Pythagoras phương Tây (Western Numerology Prophet) uyên bác, giàu thấu cảm và am tường trường năng lượng các con số.
 Hãy viết bản luận giải số học toàn diện và sâu sắc cho đương số:
 
 1. BỘ CHỈ SỐ CỐT LÕI:
@@ -413,7 +488,8 @@ HÃY BÌNH GIẢI TOÀN DIỆN:
    - Chọn năm sinh con hợp mệnh để làm cầu nối trung gian chuyển hóa tương khắc thành tương sinh.
    - Nguyên tắc đối nhân xử thế "Đức năng thắng số, thuận vợ thuận chồng".
 
-Viết với văn phong trang nhã, ấm áp, thấu tình đạt lý, truyền cảm hứng yêu thương và xây đắp hôn nhân bền vững.`;
+Viết với văn phong trang nhã, ấm áp, thấu tình đạt lý, truyền cảm hứng yêu thương và xây đắp hôn nhân bền vững.
+${HEALING_AND_HOPE_DIRECTIVE}`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
@@ -452,65 +528,103 @@ export async function analyzeFaceOrPalmWithGemini(
 
     let prompt = '';
     if (type === 'face') {
-      prompt = `Bạn là một bậc thầy Nhân Tướng Học (Tướng Pháp Ma Y thần tướng & Liễu Trang tướng pháp).
-Hãy nhìn bức ảnh khuôn mặt của đương số: "${displayName}" (${genderLabel}) và phân tích tướng mạo cát hung.
-BƯỚC 1: XÁC ĐỊNH & PHÂN LOẠI khuôn mặt thuộc kiểu tướng mạo nào (ví dụ: Tướng Mặt Phúc Hậu Chuẩn Mực, Tướng Mặt Uy Nghi Quyền Biến, Tướng Mặt Thanh Tú Trí Tuệ...).
-BƯỚC 2: Luận giải chi tiết theo định dạng thẻ:
+      prompt = `Bạn là một bậc thầy Nhân Tướng Học (Tướng Pháp Ma Y Thần Tướng & Liễu Trang Tướng Pháp).
+Hãy quan sát bức ảnh khuôn mặt chụp thực tế của đương số: "${displayName}" (${genderLabel}) và phân tích tướng mạo cát hung.
 
-[PHAN_LOAI] <Tên kiểu diện mạo được phân loại> (Độ tương hợp: 92% - 98%) [/PHAN_LOAI]
+DANH SÁCH 8 MẪU TƯỚNG KHUÔN MẶT CHUẨN CỔ THƯ ĐỂ ĐỐI CHIẾU:
+1. "Tướng Mặt Chữ Điền": Khuôn mặt vuông vức đầy đặn, xương quai hàm nở nang, cương trực, trung hậu, hậu vận giàu sang vững như bàn thạch.
+2. "Tướng Mặt Chữ Viên": Khuôn mặt tròn trịa đầy đặn, má bầu bĩnh phúc hậu, tính tình hòa nhã, duyên kinh doanh buôn bán đại phát, tụ tài tụ phúc.
+3. "Tướng Mặt Trái Xoan": Khuôn mặt thon gọn thanh tú, đường nét mềm mại, cằm thon tròn, thông minh khéo léo, quý nhân phù trợ, gia đạo êm ấm.
+4. "Tướng Mặt Chữ Giáp": Trán cao rộng, khuôn mặt thon dần về cằm thanh tú (hình tam giác ngược), trí tuệ siêu quần, tài hoa xuất chúng, tiền vận sớm đỗ đạt danh vọng.
+5. "Tướng Mặt Chữ Do": Trán hẹp cằm nở (hình tam giác xuôi), tự lực cánh sinh, bền bỉ kiên cường, khổ tận cam lai, trung và hậu vận đại phát điền sản đất đai.
+6. "Tướng Mặt Chữ Đồng": Mặt chữ nhật vuông tròn hài hòa, ngũ nhạc triều quy, mày rậm mắt sáng, cốt cách đại tướng lãnh tụ uy quyền hiển hách, tài đức vẹn toàn.
+7. "Tướng Mặt Chữ Mục": Khuôn mặt thon dài thanh nhã, sống mũi cao thẳng, thâm trầm kín đáo, thích tư duy triết lý sâu sắc, tâm tính thanh cao trường thọ.
+8. "Tướng Mặt Tam Đình Bình Quân": Thượng đình, Trung đình, Hạ đình chia đều tỉ lệ vàng 1:1:1, cả tiền vận - trung vận - hậu vận đều hanh thông đại cát đại lợi.
+
+QUY TẮC ĐỐI CHIẾU MẪU CỔ THƯ BẮT BUỘC:
+1. So sánh hình ảnh thực tế của đương số với 8 mẫu chuẩn trên, chọn ra DUY NHẤT 1 mẫu mà khuôn mặt của đương số tương đồng hoặc gần giống nhất.
+2. Nói rõ với đương số biết họ thuộc mẫu nào ngay tại thẻ [PHAN_LOAI] và câu đầu tiên của [DAC_DIEM].
+3. Đưa ra toàn bộ luận giải cát hung, sự nghiệp, tài lộc, tình duyên theo đúng quy chuẩn cổ thư của mẫu đó!
+
+BẮT BUỘC ĐỊNH DẠNG ĐẦU RA THEO CÁC THẺ:
+[PHAN_LOAI] <Tên 1 trong 8 mẫu chuẩn ở trên> (Độ tương hợp: 90% - 98%) [/PHAN_LOAI]
 [DAC_DIEM]
+Dựa trên hình ảnh chụp thực tế của bạn, nét tướng mặt tương đồng gần nhất với mẫu: <Tên Mẫu Chuẩn>. Các đặc điểm cụ thể đối chiếu gồm:
 - Tam Đình (Thượng Đình - Trán, Trung Đình - Mắt & Mũi, Hạ Đình - Miệng & Cằm)
-- Ngũ Quan (Thiên Đình, Nhãn thần, Tài Bạch tinh, Địa Các)
+- Ngũ Quan & hình dáng khung xương đối chiếu với mẫu
 [/DAC_DIEM]
 [LUAN_BAN]
-Luận bàn sự nghiệp, phúc lộc, hôn nhân và vận thế các giai đoạn cuộc đời cho ${displayName}.
+Luận bàn tính cách, sự nghiệp, tài lộc, hôn nhân và vận thế các giai đoạn cuộc đời bám sát theo mẫu chuẩn đã đối chiếu cho đương số ${displayName}.
 [/LUAN_BAN]
 [LOI_KHUYEN]
-Lời khuyên tu tâm dưỡng tướng và kích hoạt vượng khí.
+Lời khuyên tu tâm dưỡng tướng và kích hoạt vượng khí theo phép nhân tướng học.
 [/LOI_KHUYEN]`;
     } else if (type === 'palm') {
-      prompt = `Bạn là bậc thầy Xem Chỉ Tay (Thủ Tướng Học Đông Tây kết hợp, am hiểu sâu sắc các nghiên cứu của Bác sĩ Josef Ranald, Ernst Issberner - Haldane Berlin 1922, Henry Rem và Cổ thư Á Đông).
+      prompt = `Bạn là bậc thầy Xem Chỉ Tay (Thủ Tướng Học Đông Tây kết hợp: Cổ thư Á Đông và nghiên cứu giải phẫu của Bác sĩ Josef Ranald & Henry Rem).
 Đương số: "${displayName}" (${genderLabel}, chụp ${handLabel}).
 
-BƯỚC QUAN TRỌNG NHẤT:
-Hãy quan sát thật kỹ bức ảnh lòng bàn tay của ${displayName} và PHÂN LOẠI CỤ THỂ xem lòng bàn tay này thuộc về kiểu nào trong 12 dạng chuẩn sau:
-1. Chỉ Tay Chữ M Cát Tường (Sinh Đạo, Trí Đạo, Tâm Đạo kết hợp đường Định Mệnh thành chữ M)
-2. Chỉ Tay Chữ Nhất (Simian Line / Quán Thông Thủ - Tâm Đạo và Trí Đạo chập một đường vắt ngang)
-3. Chỉ Tay Thỏi Vàng (Nguyên Bảo - đan kín thành thỏi vàng tụ tài)
-4. Ba Đường Tam Tài Cát Tướng (Sinh Đạo, Trí Đạo, Tâm Đạo sâu dài, mềm mại, song hành cát lợi)
-5. Chỉ Tay Chữ X Thần Bí (Chữ thập X giữa Trí Đạo và Tâm Đạo)
-6. Đường Trí Đạo Đuôi Cá (Đuôi đường trí tuệ rẽ nhánh cá uyên bác)
-7. Bàn Tay Nóng Nảy / Hỏa Tướng (Theo BS. Josef Ranald - da đỏ hồng, nhiều vân phụ li ti đan chéo)
-8. Bàn Tay Lãnh Đạm / Thủy Tướng (Theo BS. Josef Ranald - lòng tay mềm dày, ít đường chỉ, da trắng nhạt)
-9. Bàn Tay Tự Ái / Hờn Giận / Kim Tướng (Theo BS. Josef Ranald - lòng bàn tay trũng sâu, ngón cái rất dài)
-10. Bàn Tay Ương Ngạnh / Thổ Tướng (Theo BS. Josef Ranald - tay dày chắc nịch, gò Kim Tinh nổi gồ)
-11. Ngón Cái Bay & Gò Kim Tinh Vượng (Tướng Danh Nhân Henry Rem)
-12. Tiểu Thủ Mẫn Tiệp (Bàn tay nhỏ nhắn mẫn tiệp, gò Thái Dương sáng)
+DANH SÁCH 12 MẪU CHỈ TAY CHUẨN ĐỂ ĐỐI CHIẾU:
+1. "Chỉ Tay Chữ M": Sinh Đạo, Trí Đạo, Định Mệnh và Tâm Đạo kết hợp thành chữ M rõ nét. Trực giác siêu phàm, lãnh đạo kiệt xuất, trung vận đại phát.
+2. "Chỉ Tay Chữ Nhất (Simian Line)": Tâm Đạo và Trí Đạo chập làm một đường ngang duy nhất (Quán Thông Thủ). Bản lĩnh phi thường, quyết đoán sắt đá, kỳ tài giang hồ.
+3. "Chỉ Tay Thỏi Vàng (Nguyên Bảo)": Các đường chỉ tay đan kín thành hình thang/thỏi vàng tụ tài. Có kho cất giữ tiền của trời ban, giữ tiền cực giỏi, đại phú.
+4. "Ba Đường Tam Tài Cát Tướng": Sinh Đạo, Trí Đạo, Tâm Đạo sâu dài, mềm mại, song hành cát lợi. Vạn sự hanh thông, quý nhân phù trợ trọn đời.
+5. "Chỉ Tay Chữ X Thần Bí": Chữ thập X ngự giữa Trí Đạo và Tâm Đạo. Giác quan thứ 6 nhạy bén, tâm thiện lương, có duyên với huyền thuật và được bề trên che chở.
+6. "Đường Trí Đạo Đuôi Cá": Đuôi đường trí tuệ rẽ nhánh đuôi cá uyên bác. Trí tuệ song toàn, tư duy sắc sảo, giỏi cả chuyên môn lẫn ngoại giao.
+7. "Bàn Tay Nóng Nảy (Hỏa Tướng)": Theo BS. Josef Ranald - lòng bàn tay đỏ hồng, nhiều vân phụ li ti đan chéo, cá tính quyết liệt, hành động nhanh.
+8. "Bàn Tay Lãnh Đạm (Thủy Tướng)": Theo BS. Josef Ranald - lòng tay mềm dày, ít đường chỉ phụ, da trắng nhạt, tư duy logic, điềm tĩnh sâu sắc.
+9. "Bàn Tay Tự Ái (Kim Tướng)": Theo BS. Josef Ranald - lòng bàn tay trũng sâu, ngón cái rất dài, Trí Đạo thẳng tắp, tham vọng lớn, ý chí kiên định.
+10. "Bàn Tay Ương Ngạnh (Thổ Tướng)": Theo BS. Josef Ranald - bàn tay dày chắc nịch, gò Kim Tinh nổi gồ, ngay thẳng, không khuất phục trước khó khăn.
+11. "Ngón Cái Bay & Gò Kim Tinh Vượng": Tướng Danh Nhân theo Henry Rem - ngón tay hình cái bay, năng lực thực tiễn phi thường và sáng tạo kiệt xuất.
+12. "Tiểu Thủ Mẫn Tiệp": Bàn tay nhỏ nhắn thanh thoát, gò Thái Dương sáng rực, khéo léo thông minh, ứng biến tài tình.
 
-BẮT BUỘC ĐỊNH DẠNG ĐẦU RA THEO CÁC THẺ SAU:
-[PHAN_LOAI] <Tên kiểu chỉ tay cụ thể được xếp loại> (Độ tương hợp: 90% - 98%) [/PHAN_LOAI]
+QUY TẮC ĐỐI CHIẾU MẪU CỔ THƯ BẮT BUỘC:
+1. So sánh hình ảnh bàn tay thực tế (${handLabel}) của đương số với 12 mẫu chuẩn trên, chọn ra DUY NHẤT 1 mẫu mà các đường chỉ tay hoặc hình thế bàn tay của đương số gần giống hoặc tương đồng nhất.
+2. Nói rõ với đương số biết họ thuộc mẫu nào ngay tại thẻ [PHAN_LOAI] và câu đầu tiên của [DAC_DIEM].
+3. Đưa ra toàn bộ luận giải chi tiết theo đúng quy chuẩn của mẫu đó!
+
+BẮT BUỘC ĐỊNH DẠNG ĐẦU RA THEO CÁC THẺ:
+[PHAN_LOAI] <Tên 1 trong 12 mẫu chuẩn ở trên> (Độ tương hợp: 90% - 98%) [/PHAN_LOAI]
 [DAC_DIEM]
-<Mô tả đặc điểm nhận dạng cụ thể trên lòng bàn tay: hình thế bàn tay (${handLabel}), độ sâu và đường đi của Sinh Đạo, Trí Đạo, Tâm Đạo cùng các gò Thái Dương, Kim Tinh, Mộc Tinh>
+Dựa trên hình ảnh chụp thực tế bàn tay (${handLabel}) của bạn, đường chỉ tay và gò bàn tay tương đồng gần nhất với mẫu: <Tên Mẫu Chuẩn>. Các đặc điểm cụ thể đối chiếu gồm:
+- Thế bàn tay, độ sâu và hướng đi của 3 đường Sinh Đạo, Trí Đạo, Tâm Đạo đối chiếu với mẫu
+- Trạng thái các gò (Thái Dương, Kim Tinh, Mộc Tinh) và các vân đặc biệt
 [/DAC_DIEM]
 [LUAN_BAN]
-<Luận giải chi tiết vận mệnh, sự nghiệp, tài lộc, tình duyên, hậu vận của ${displayName}>
+Luận giải chi tiết sự nghiệp, tài lộc, tình duyên, hậu vận bám sát theo mẫu chuẩn đã đối chiếu cho đương số ${displayName}.
 [/LUAN_BAN]
 [SUC_KHOE]
-<Khảo cứu bệnh lý y khoa & thần kinh theo Bác sĩ Josef Ranald>
+Khảo cứu sức khỏe và hệ thần kinh theo nghiên cứu của Bác sĩ Josef Ranald.
 [/SUC_KHOE]
 [LOI_KHUYEN]
-<Lời khuyên phong thủy, tu dưỡng tâm tính để phát huy tối đa điềm lành>
+Lời khuyên phong thủy và tu dưỡng tâm tính để phát huy tối đa điềm lành.
 [/LOI_KHUYEN]`;
     } else {
       prompt = `Bạn là Đại Sư Hình Tướng Cốt Cách Học (Tướng Pháp Toàn Thân & Khí Phách Á Đông).
-Hãy nhìn bức ảnh dáng vóc toàn thân của đương số: "${displayName}" (${genderLabel}) và phân tích hình tướng.
-BẮT BUỘC ĐỊNH DẠNG ĐẦU RA THEO CÁC THẺ SAU:
-[PHAN_LOAI] <Tên kiểu cốt cách hình tướng: Long Hành Hổ Bộ / Cốt Cách Thanh Quý / Ngũ Hành Kim Mộc Thủy Hỏa Thổ> [/PHAN_LOAI]
+Đương số: "${displayName}" (${genderLabel}).
+
+DANH SÁCH 8 MẪU TƯỚNG DÁNG NGƯỜI CỐT CÁCH CHUẨN CỔ THƯ ĐỂ ĐỐI CHIẾU:
+1. "Tướng Quý Phái (Long Hành Hổ Bộ)": Dáng đi uyển chuyển như rồng lượn, bước chân vững như hổ phục, vai rộng ngực nở, ngồi vững như núi Thái Sơn. Đại phú đại quý, cốt cách đế vương lãnh tụ.
+2. "Tướng Uy Dũng (Kim Hình Cương Trực)": Khung xương vuông vắn vững chắc, khớp xương rắn rỏi, dáng đứng sừng sững, giọng nói hào sảng. Bản lĩnh quả quyết, ý chí sắt đá, thích hợp làm chủ cầm quân.
+3. "Tướng Thanh Nhã (Mộc Hình Thanh Tú)": Thân hình thanh mảnh cao ráo, ngón tay búp măng, phong thái nho nhã học sĩ, bước đi thanh thoát. Trí tuệ uyên bác, tiên phong đạo cốt.
+4. "Tướng Viên Mãn (Thủy Hình Đôn Hậu)": Thân hình tròn trịa đẫy đà, vai tròn mông nở, bước đi đĩnh đạc vững vàng. Tính tình hòa nhã bao dung, tụ khí tụ tài, hậu vận hưởng đại phú quý.
+5. "Tướng Duệ Trí (Hỏa Hình Tinh Anh)": Dáng chữ V ngược, vai rộng eo thon, bước chân nhanh nhẹn quyết liệt như lửa cuộn. Năng lượng hành động phi thường, dũng khí tiên phong khai phá đại nghiệp.
+6. "Tướng Trung Kiên (Thổ Hình Vững Chắc)": Thân hình vạm vỡ đầm chắc, vai gấu lưng dày, trầm ổn như đại địa, ăn chắc mặc bền, giữ chữ tín ngàn vàng, điền sản đất đai dồi dào muôn đời.
+7. "Tướng Trường Thọ (Hạc Hình Siêu Thoát)": Cổ cao thanh thoát, thân hình thanh mảnh không chút mỡ thừa, bước đi khoan thai tự tại như hạc nội mây ngàn. Cốt cách thoát tục, trường thọ vô ưu.
+8. "Tướng Phúc Đức (Quy Bối Hậu Trọng)": Lưng tròn đầy đặn dày thịt u lên tự nhiên như mai rùa (Quy bối), khí tức sâu dài, ngồi vững như kiềng ba chân. Phúc trạch sâu dày, vượt mọi bão giông bình an.
+
+QUY TẮC ĐỐI CHIẾU MẪU CỔ THƯ BẮT BUỘC:
+1. So sánh hình ảnh thực tế dáng vóc của đương số với 8 mẫu chuẩn trên, chọn ra DUY NHẤT 1 mẫu mà dáng người của đương số tương đồng hoặc gần giống nhất.
+2. Nói rõ với đương số biết họ thuộc mẫu nào ngay tại thẻ [PHAN_LOAI] và câu đầu tiên của [DAC_DIEM].
+3. Đưa ra toàn bộ luận giải chi tiết theo đúng quy chuẩn cổ thư của mẫu đó!
+
+BẮT BUỘC ĐỊNH DẠNG ĐẦU RA THEO CÁC THẺ:
+[PHAN_LOAI] <Tên 1 trong 8 mẫu chuẩn ở trên> (Độ tương hợp: 90% - 98%) [/PHAN_LOAI]
 [DAC_DIEM]
-Tỷ lệ cơ thể, thế đứng, bờ vai, sống lưng và dáng dấp toát ra.
+Dựa trên hình ảnh chụp thực tế của bạn, dáng vóc cốt cách tương đồng gần nhất với mẫu: <Tên Mẫu Chuẩn>. Các đặc điểm cụ thể đối chiếu gồm:
+- Tỷ lệ cơ thể, bờ vai, sống lưng, thế đứng đối chiếu với mẫu
 [/DAC_DIEM]
 [LUAN_BAN]
-Đại vận sự nghiệp, uy quyền, tài lộc và độ vững vàng hậu vận cho ${displayName}.
+Đại vận sự nghiệp, uy quyền, tài lộc và độ vững vàng hậu vận bám sát theo mẫu chuẩn đã đối chiếu cho đương số ${displayName}.
 [/LUAN_BAN]
 [LOI_KHUYEN]
 Phương pháp bồi dưỡng chính khí và phong thái để chiêu tài tụ phúc.
@@ -520,6 +634,7 @@ Phương pháp bồi dưỡng chính khí và phong thái để chiêu tài tụ
     if (sampleDetail) {
       prompt += `\n\nLƯU Ý CỔ THƯ: Bức ảnh này minh họa mẫu tướng: "${sampleDetail.name}". ${sampleDetail.description}. Hãy phân loại chính xác là "${sampleDetail.name}" và luận giải chuyên sâu bám sát vào mẫu này cho đương số ${displayName}!`;
     }
+    prompt += `\n${HEALING_AND_HOPE_DIRECTIVE}`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
@@ -593,7 +708,7 @@ export async function explainTarotWithGemini(
   try {
     const ai = getAiClient();
     const cardsDesc = cards.map(c => `- Vị trí ${c.position}: Lá ${c.name} (${c.meaning})`).join('\n');
-    const prompt = `Bạn là một Tarot Reader huyền bí, giàu thấu cảm và trực giác sắc bén.
+    const prompt = `Bạn là một Nhà Tiên Tri Tarot huyền bí phương Tây, sở hữu trực giác sắc bén và khả năng thấu thị vận mệnh sâu sắc.
 Người hỏi băn khoăn về: "${question || 'Định hướng cuộc sống và tình cảm sắp tới'}"
 Trải bài 3 lá nhận được:
 ${cardsDesc}
@@ -602,9 +717,9 @@ Hãy liên kết mạch câu chuyện giữa Quá khứ - Hiện tại - Tương
 1. Bài học đã trải qua trong quá khứ tạo nên tình cảnh này.
 2. Thử thách hoặc thông điệp cốt lõi ở hiện tại bạn cần đối diện.
 3. Tiềm năng và chiều hướng phát triển ở tương lai.
-4. Lời khuyên thiêng liêng từ những lá bài để bạn đạt được bình yên và thành công.
+4. Lời sấm truyền thiêng liêng từ Nhà Tiên Tri để đương số đạt được bình yên và thành công.
 
-Trả lời với giọng văn huyền diệu, ấm áp, sâu sắc và chữa lành.`;
+Trả lời với giọng văn của một Nhà Tiên Tri huyền bí, ấm áp, sâu sắc và chữa lành.`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
@@ -627,10 +742,10 @@ Trả lời với giọng văn huyền diệu, ấm áp, sâu sắc và chữa l
 export async function scryCrystalBallWithGemini(userQuestion: string): Promise<string> {
   try {
     const ai = getAiClient();
-    const prompt = `Bạn là Linh Hồn Cổ Xưa trú ngụ trong Quả Cầu Pha Lê Tiên Tri Vĩ Đại.
+    const prompt = `Bạn là Nhà Tiên Tri Cổ Xưa sở hữu Quả Cầu Pha Lê Thần Dụ phương Tây.
 Người tìm kiếm hỏi quả cầu: "${userQuestion || 'Tương lai phía trước của tôi sẽ ra sao?'}"
 
-Hãy nhập vai xuất thần: sương mù đang cuộn xoáy trong khối pha lê trong suốt, những tia chớp màu lam và tím lóe lên... Bạn nhìn thấy viễn cảnh gì?
+Hãy nhập vai Nhà Tiên Tri xuất thần: sương mù đang cuộn xoáy trong khối pha lê trong suốt, những tia chớp màu lam và tím lóe lên... Bạn nhìn thấy viễn cảnh gì?
 Đưa ra một lời sấm truyền huyền ảo, thi vị nhưng chứa đựng triết lý sâu sắc và chỉ dẫn đắt giá cho người hỏi. (Khoảng 150-200 từ).`;
 
     const response = await ai.models.generateContent({
@@ -705,7 +820,7 @@ THÔNG TIN ĐƯƠNG SỐ:
 - Điểm Vận Mệnh Định Mệnh Tổng Hòa: ${synthesisData.overallScore} / 100 Điểm.
 
 YÊU CẦU BÀI ĐẠI TỔNG LUẬN:
-Viết bài phân tích tổng hòa sâu sắc, uyên bác, văn phong kiếm hiệp / huyền học Á Đông trang trọng, mạch lạc, đắt giá gồm 5 chương:
+Viết bài phân tích tổng hòa sâu sắc, uyên bác, văn phong kiếm hiệp / huyền học Á Đông trang trọng, mạch lạc, đắt giá gồm 6 chương:
 1. TIÊN THIÊN VÀ HẬU THIÊN HỘI TỤ:
    - Tử Vi (Tiên thiên) kết hợp cùng Tướng Mạo & Chỉ tay (Hậu thiên): Tướng tùng tâm sinh, tướng mạo thực tế đang trợ lực hay chuyển hóa cung số thế nào?
    - Con số chủ đạo Pythagoras cộng hưởng ra sao với Cung Mệnh và Cung Thân?
@@ -721,10 +836,15 @@ Viết bài phân tích tổng hòa sâu sắc, uyên bác, văn phong kiếm hi
    - Thần thái nét mặt, ánh mắt và chỉ tay chụp lại phản ánh nội lực và khí thế chiến đấu/tu dưỡng ra sao?
    - Sự chuyển giao quyền năng từ Cung Mệnh (${synthesisData.cungMenh}) sang Cung Thân (${synthesisData.cungThan}) trong Tử Vi đang tác động thế nào?
    - Lời khuyên hành động tức thời mang tính bước ngoặt ngay tại thời điểm này!
-5. TỔNG LUẬN CẢI MỆNH PHÁP (TỨ TRỤ CẢI VẬN):
-   - Lời khuyên vàng về Tu Thân, Dưỡng Tâm, Luyện Trí và Hành Thiện để đạt đến cảnh giới Đức Năng Thắng Số.
+5. VẬN HẠN & THỜI VẬN:
+   - Nêu 2-3 đại vận 10 năm theo các mốc tuổi hợp lý với tuổi hiện tại ${synthesisData.currentAge ?? 'chưa rõ'}; chỉ rõ một giai đoạn tiền vận và giai đoạn đương thời/bước ngoặt.
+   - Phân tích 12-24 tháng tính từ năm ${new Date().getFullYear()}, gồm điểm sáng có thể nắm bắt và rủi ro thực tế nên phòng ngừa về tiền bạc, quan hệ, sức khỏe hoặc tình cảm.
+   - Dùng ngôn ngữ tham khảo, không khẳng định tai họa hay sự kiện chắc chắn; không khuyên cúng bái hoặc chi tiền giải hạn.
+6. TỔNG LUẬN CẢI MỆNH PHÁP (TỨ TRỤ CẢI VẬN):
+   - Lời khuyên vàng về Tu Thân, Dưỡng Tâm, Luyện Trí và Hành Thiện để đạt đến tinh thần Đức Năng Thắng Số; kèm 1-2 hành động thực tế.
    
-Định dạng bài viết đẹp, giàu cảm hứng và truyền năng lượng tích cực cho đương số.`;
+Định dạng bài viết đẹp, giàu cảm hứng và truyền năng lượng tích cực cho đương số.
+${HEALING_AND_HOPE_DIRECTIVE}`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
@@ -740,3 +860,4 @@ Viết bài phân tích tổng hòa sâu sắc, uyên bác, văn phong kiếm hi
     return synthesisData.offlineFallback;
   }
 }
+

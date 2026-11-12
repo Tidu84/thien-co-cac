@@ -1,0 +1,6 @@
+interface:
+  display_name: "Thien Co Cac - Tu Vi"
+  short_description: "Review Tu Vi charts and date calculations"
+  default_prompt: "Use $thien-co-cac-tu-vi for this part of the Thien Co Cac project."
+policy:
+  allow_implicit_invocation: true

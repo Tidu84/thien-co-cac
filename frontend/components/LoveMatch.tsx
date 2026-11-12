@@ -1,4 +1,6 @@
+import { BirthDateSelector } from './BirthDateSelector';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useAppVoice } from '../contexts/VoiceContext';
 import { PersonLoveInput, LoveMatchSummary } from '../types';
 import { calculateLoveMatch, findIdealPartnerAdvice, IdealPartnerAdvice, CandidateIdealYear } from '../services/loveMatchService';
 import { analyzeLoveMatchWithGemini } from '../services/geminiService';
@@ -43,6 +45,7 @@ interface LoveMatchProps {
 }
 
 export const LoveMatch: React.FC<LoveMatchProps> = ({ onSaveResult }) => {
+  const { speak, stopSpeaking: stopAppSpeaking } = useAppVoice();
   const specificFormRef = useRef<HTMLDivElement | null>(null);
 
   // Người thứ nhất (Mặc định Nam 1984 Giáp Tý hoặc lấy từ hồ sơ đang mở)
@@ -117,38 +120,24 @@ export const LoveMatch: React.FC<LoveMatchProps> = ({ onSaveResult }) => {
     }
   }, [person1.year, person1.month, person1.day, person1.gender, person1.calendarMode, person1.name]);
 
-  // Giọng nói đọc lời phán của Thầy Bói
+  // Giọng nói đọc lời phán của Thầy Bói qua bộ quản lý chung.
   const speakFortuneTeller = (text: string) => {
-    if (!('speechSynthesis' in window)) return;
-    try {
-      window.speechSynthesis.cancel();
-      const clean = text
-        .replace(/[*#_~🪙📜👁️🃏🔮✨☯👤🌸👉❓]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
+    const clean = text
+      .replace(/[*#_~🪙📜👁️🃏🔮✨☯👤🌸👉❓]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
 
-      const utterance = new SpeechSynthesisUtterance(clean);
-      const voices = window.speechSynthesis.getVoices();
-      const viVoice = voices.find(v => v.lang.toLowerCase().includes('vi') || v.lang.toLowerCase().includes('vie'));
-      if (viVoice) utterance.voice = viVoice;
-      utterance.lang = 'vi-VN';
-      utterance.rate = 1.0;
-      utterance.pitch = 1.1;
-
-      utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => setIsSpeaking(false);
-      utterance.onerror = () => setIsSpeaking(false);
-
-      window.speechSynthesis.speak(utterance);
-    } catch (e) {
-      console.warn("Speech error:", e);
-    }
+    return speak(clean, {
+      lang: 'vi-VN', tone: 'mystic',
+      onStart: () => setIsSpeaking(true),
+      onEnd: () => setIsSpeaking(false),
+      onStop: () => setIsSpeaking(false),
+      onError: () => setIsSpeaking(false)
+    });
   };
 
   const stopSpeaking = () => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
+    stopAppSpeaking();
     setIsSpeaking(false);
   };
 
@@ -220,9 +209,7 @@ export const LoveMatch: React.FC<LoveMatchProps> = ({ onSaveResult }) => {
     return () => {
       window.removeEventListener('thien_co_cac_active_name_changed', handleActiveChange);
       window.removeEventListener('thien_co_cac_dossier_updated', handleDossierUpdate);
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
+      stopAppSpeaking();
     };
   }, []);
 
@@ -690,38 +677,19 @@ export const LoveMatch: React.FC<LoveMatchProps> = ({ onSaveResult }) => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2">
-                  <input
-                    type="number"
-                    min="1"
-                    max="31"
-                    required
-                    value={person1.day}
-                    onChange={(e) => handlePerson1DateChange('day', parseInt(e.target.value) || 1)}
-                    placeholder="Ngày"
-                    className="bg-slate-950 border border-slate-700 focus:border-rose-400 rounded-xl px-2 py-1.5 text-center text-xs sm:text-sm font-bold text-rose-300"
-                  />
-                  <input
-                    type="number"
-                    min="1"
-                    max="12"
-                    required
-                    value={person1.month}
-                    onChange={(e) => handlePerson1DateChange('month', parseInt(e.target.value) || 1)}
-                    placeholder="Tháng"
-                    className="bg-slate-950 border border-slate-700 focus:border-rose-400 rounded-xl px-2 py-1.5 text-center text-xs sm:text-sm font-bold text-rose-300"
-                  />
-                  <input
-                    type="number"
-                    min="1900"
-                    max="2050"
-                    required
-                    value={person1.year}
-                    onChange={(e) => handlePerson1DateChange('year', parseInt(e.target.value) || 1984)}
-                    placeholder="Năm"
-                    className="bg-slate-950 border border-slate-700 focus:border-rose-400 rounded-xl px-2 py-1.5 text-center text-xs sm:text-sm font-bold text-rose-300"
-                  />
-                </div>
+                <BirthDateSelector
+                  day={person1.day}
+                  month={person1.month}
+                  year={person1.year}
+                  onChange={(d, m, y) => {
+                    setPerson1(p => ({ ...p, day: d, month: m, year: y }));
+                    setHasPerson1BirthDate(true);
+                  }}
+                  isLunar={person1.calendarMode === 'lunar'}
+                  theme="rose"
+                  compact={true}
+                  showCalendarPicker={person1.calendarMode === 'solar'}
+                />
               </div>
             </div>
 
@@ -796,38 +764,18 @@ export const LoveMatch: React.FC<LoveMatchProps> = ({ onSaveResult }) => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2">
-                  <input
-                    type="number"
-                    min="1"
-                    max="31"
-                    required
-                    value={person2.day}
-                    onChange={(e) => setPerson2(p => ({ ...p, day: parseInt(e.target.value) || 1 }))}
-                    placeholder="Ngày"
-                    className="bg-slate-950 border border-slate-700 focus:border-pink-400 rounded-xl px-2 py-1.5 text-center text-xs sm:text-sm font-bold text-pink-300"
-                  />
-                  <input
-                    type="number"
-                    min="1"
-                    max="12"
-                    required
-                    value={person2.month}
-                    onChange={(e) => setPerson2(p => ({ ...p, month: parseInt(e.target.value) || 1 }))}
-                    placeholder="Tháng"
-                    className="bg-slate-950 border border-slate-700 focus:border-pink-400 rounded-xl px-2 py-1.5 text-center text-xs sm:text-sm font-bold text-pink-300"
-                  />
-                  <input
-                    type="number"
-                    min="1900"
-                    max="2050"
-                    required
-                    value={person2.year}
-                    onChange={(e) => setPerson2(p => ({ ...p, year: parseInt(e.target.value) || 1988 }))}
-                    placeholder="Năm"
-                    className="bg-slate-950 border border-slate-700 focus:border-pink-400 rounded-xl px-2 py-1.5 text-center text-xs sm:text-sm font-bold text-pink-300"
-                  />
-                </div>
+                <BirthDateSelector
+                  day={person2.day}
+                  month={person2.month}
+                  year={person2.year}
+                  onChange={(d, m, y) => {
+                    setPerson2(p => ({ ...p, day: d, month: m, year: y }));
+                  }}
+                  isLunar={person2.calendarMode === 'lunar'}
+                  theme="rose"
+                  compact={true}
+                  showCalendarPicker={person2.calendarMode === 'solar'}
+                />
               </div>
             </div>
           </div>

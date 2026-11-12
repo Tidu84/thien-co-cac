@@ -1,44 +1,105 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useAppVoice } from '../contexts/VoiceContext';
 import { CharacterMood, ChatMessage, NavTab } from '../types';
 import { chatWithLinhNhi } from '../services/geminiService';
 import { Character3D, FortuneTellerStyle } from './Character3D';
-import { 
-  upsertUserDossier, 
-  getActiveDossierName, 
-  setActiveDossierName 
+import {
+  upsertUserDossier,
+  getActiveDossierName,
+  getActiveDossier
 } from '../services/dossierService';
-import { 
-  Sparkles, 
-  Send, 
-  Volume2, 
-  VolumeX, 
-  RotateCcw, 
-  MessageSquareHeart, 
-  Loader2, 
-  ArrowRightCircle, 
-  Gift, 
-  Compass, 
+import {
+  Sparkles,
+  Send,
+  Volume2,
+  VolumeX,
+  RotateCcw,
+  MessageSquareHeart,
+  Loader2,
+  ArrowRightCircle,
+  Gift,
+  Compass,
   Sparkle,
   CheckCircle,
   XCircle
 } from 'lucide-react';
 
+type GuidePersona = 'male' | 'female';
+
+/** Chấp nhận các định dạng giới tính thường gặp trong hồ sơ cũ và mới. */
+const normalizeDossierGender = (value: unknown): 'nam' | 'nu' | null => {
+  if (value === null || value === undefined) return null;
+  const gender = String(value).trim().toLocaleLowerCase('vi-VN');
+  if (['nam', 'male', 'm', '1', 'trai'].includes(gender)) return 'nam';
+  if (['nu', 'nữ', 'female', 'f', '0', '2', 'gai', 'gái'].includes(gender)) return 'nu';
+  return null;
+};
+
 interface AnimeGuideProps {
   onQuickQuestion: (question: string) => void;
-  onNavigateTab?: (tab: NavTab) => void;
+  onNavigateTab?: (tab: NavTab, subMode?: 'face' | 'palm' | 'body') => void;
 }
 
 export const AnimeGuide: React.FC<AnimeGuideProps> = ({ onQuickQuestion, onNavigateTab }) => {
+  const { voiceEnabled, toggleVoice: toggleAppVoice, unlockAudio, speak, stopSpeaking } = useAppVoice();
+  const [userGender, setUserGender] = useState<'nam' | 'nu'>(() => {
+    try { return normalizeDossierGender(getActiveDossier()?.gender) ?? 'nam'; } catch { return 'nam'; }
+  });
+  const [manualPersona, setManualPersona] = useState<GuidePersona | null>(() => {
+    try {
+      const saved = localStorage.getItem('thien_co_cac_selected_persona');
+      if (saved === 'male' || saved === 'female') return saved as GuidePersona;
+      return null;
+    } catch {
+      return null;
+    }
+  });
+  const guidePersona: GuidePersona = manualPersona ?? (userGender === 'nam' ? 'female' : 'male');
+  const guideName = guidePersona === 'female' ? 'Nguyệt Cơ Tiên Nương' : 'Thiên Cơ Chân Nhân';
+  const guideAddress = guidePersona === 'female'
+    ? userGender === 'nam' ? 'tiên sinh' : userGender === 'nu' ? 'nữ thí chủ' : 'bạn hữu'
+    : userGender === 'nam' ? 'thiện nam' : userGender === 'nu' ? 'nữ thí chủ' : 'bạn hữu';
   const [characterMood, setCharacterMood] = useState<CharacterMood>('happy');
-  const [currentFortuneTellerStyle, setCurrentFortuneTellerStyle] = useState<FortuneTellerStyle>('manga_cool');
+  const [currentFortuneTellerStyle, setCurrentFortuneTellerStyle] = useState<FortuneTellerStyle>(() => {
+    if (manualPersona === 'male') return 'manga_cool';
+    if (manualPersona === 'female') return 'female_oracle';
+    return userGender === 'nam' ? 'female_oracle' : 'manga_cool';
+  });
+  const activeCharacter = currentFortuneTellerStyle;
+
+  useEffect(() => {
+    console.log('[AnimeGuide] Current Gender:', userGender, 'Active Character:', activeCharacter);
+  }, [userGender, guidePersona, activeCharacter]);
+  // Nếu hồ sơ được nạp hoặc cập nhật sau khi AnimeGuide đã mở, đồng bộ lại giới tính.
+  useEffect(() => {
+    const syncGenderFromActiveDossier = () => {
+      try {
+        const activeDossier = getActiveDossier();
+        const gender = normalizeDossierGender(activeDossier?.gender) ?? 'nam';
+        setUserGender(gender);
+        if (manualPersona === null) {
+          setCurrentFortuneTellerStyle(gender === 'nam' ? 'female_oracle' : 'manga_cool');
+        }
+      } catch {
+        setUserGender('nam');
+        if (manualPersona === null) setCurrentFortuneTellerStyle('female_oracle');
+      }
+    };
+    window.addEventListener('thien_co_cac_dossier_updated', syncGenderFromActiveDossier);
+    return () => window.removeEventListener('thien_co_cac_dossier_updated', syncGenderFromActiveDossier);
+  }, [manualPersona]);
+
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  
+
   // Trạng thái âm thanh & giọng nói
-  const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [hasStartedSpeaking, setHasStartedSpeaking] = useState(false);
-  const [showAutoplayPrompt, setShowAutoplayPrompt] = useState(false);
+  const [hasIntroAppeared, setHasIntroAppeared] = useState(true);
+  const [showIntroAudioPrompt, setShowIntroAudioPrompt] = useState(false);
+  const voiceEnabledRef = useRef(voiceEnabled);
+  const userHasInteractedRef = useRef(false);
+  const introSpeechAttemptedRef = useRef(false);
 
   // Trạng thái quyết định của người dùng: null (chưa chọn) | 'yes' (chọn Có) | 'no' (chọn Không)
   const [userChoice, setUserChoice] = useState<'yes' | 'no' | null>(null);
@@ -55,9 +116,13 @@ export const AnimeGuide: React.FC<AnimeGuideProps> = ({ onQuickQuestion, onNavig
   useEffect(() => {
     const handleActiveChange = (e: any) => {
       const newName = e.detail?.name || getActiveDossierName();
-      if (newName) {
-        setUserName(newName);
-      }
+      if (newName) setUserName(newName);
+
+      const activeDossier = e.detail?.dossier ?? getActiveDossier();
+      const newGender = normalizeDossierGender(activeDossier?.gender) ?? 'nam';
+      setUserGender(newGender);
+      setManualPersona(null);
+      setCurrentFortuneTellerStyle(newGender === 'nam' ? 'female_oracle' : 'manga_cool');
     };
     window.addEventListener('thien_co_cac_active_name_changed', handleActiveChange);
     return () => {
@@ -66,141 +131,136 @@ export const AnimeGuide: React.FC<AnimeGuideProps> = ({ onQuickQuestion, onNavig
   }, []);
 
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
-  const hasAutoSpokenRef = useRef(false);
 
-  // Câu khẩu quyết mở màn tự giới thiệu bản thân đầy khí chất:
-  const initialIntroScript = "Bần đạo là Thiên Cơ Chân Nhân. Hữu duyên tương ngộ nơi Thiên Cơ Các! Nhìn thần sắc người hôm nay... dường như trong lòng đang có điều trăn trở chưa tỏ?";
+  // Lời mở đầu "hữu duyên" thay đổi theo nhân vật đang dẫn chuyện.
+  const introForPersona = (persona: GuidePersona) => persona === 'female'
+    ? 'Giờ này khắc này, giữa muôn vạn người lướt qua màn hình, duyên cớ nào đưa huynh bước vào đây? Tinh bàn vừa khẽ động, dường như có một điềm báo về vận số đang đón chờ huynh ở khúc quanh phía trước... Huynh có muốn cùng thiếp mở quẻ xem thử không?'
+    : 'Không có cuộc hội ngộ nào là ngẫu nhiên cả. Kim đồng hồ điểm đúng khắc này nàng ghé bước, quẻ bài trên bàn đã sớm ứng nghiệm một chữ “Biến”. Nàng muốn tường tỏ sự chuyển biến này trong tình duyên hay tài lộc?';
+  const initialIntroScript = introForPersona(guidePersona);
+
+  const quickActions = [
+    { label: 'Công danh & Tài lộc', icon: '🪙', tab: 'tuvi' as NavTab },
+    { label: 'Tình duyên & Hợp khắc', icon: '💞', tab: 'love_match' as NavTab },
+    { label: 'Vận hạn sắp tới', icon: '☯', tab: 'iching' as NavTab },
+  ];
+  const handleQuickAction = (tab: NavTab) => {
+    if (tab === 'iching') {
+      onQuickQuestion('Tôi muốn xem vận hạn sắp tới, công việc, tài lộc và điều cần lưu ý trong thời gian gần đây.');
+      window.setTimeout(() => document.getElementById('iching-divination')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+      return;
+    }
+    onNavigateTab?.(tab);
+  };
 
   // Khung chat ban đầu
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'init-1',
       sender: 'linhnhi',
-      text: "Bần đạo là Thiên Cơ Chân Nhân. Hữu duyên tương ngộ nơi Thiên Cơ Các! Nhìn thần sắc người hôm nay... dường như trong lòng đang có điều trăn trở chưa tỏ?",
+      text: initialIntroScript,
       timestamp: 'Vừa xong'
     }
   ]);
 
-  // Bộ phát âm giọng nói thầy bói tối ưu
-  const speakText = (text: string) => {
-    if (!('speechSynthesis' in window)) return;
-    try {
-      window.speechSynthesis.cancel();
+  // Phát lời thoại qua bộ quản lý giọng đọc dùng chung toàn ứng dụng.
+  const speakText = (text: string, speaker?: GuidePersona) => {
+    const currentSpeaker: GuidePersona = speaker || manualPersona || guidePersona;
+    const cleanVoiceText = text
+      .replace(/[*#_~🪙📜👁️🃏🔮✨☯👤🌸👉❓\n]/g, ' ')
+      .replace(/\d+\./g, 'Thứ ')
+      .replace(/\s+/g, ' ')
+      .trim();
 
-      if (window.speechSynthesis.paused) {
-        window.speechSynthesis.resume();
-      }
-      
-      const cleanVoiceText = text
-        .replace(/[*#_~🪙📜👁️🃏🔮✨☯👤🌸👉❓\n]/g, ' ')
-        .replace(/\d+\./g, 'Thứ ')
-        .replace(/\s+/g, ' ')
-        .trim();
+    const isOpeningGreeting = text === introForPersona(currentSpeaker);
+    if (isOpeningGreeting) introSpeechAttemptedRef.current = true;
 
-      const utterance = new SpeechSynthesisUtterance(cleanVoiceText);
-      const voices = window.speechSynthesis.getVoices();
-      const viVoice = voices.find(v => v.lang.toLowerCase().includes('vi') || v.lang.toLowerCase().includes('vie'));
-      if (viVoice) {
-        utterance.voice = viVoice;
-      }
-      
-      utterance.lang = 'vi-VN';
-      utterance.rate = 1.0;
-      utterance.pitch = 1.15;
-
-      utterance.onstart = () => {
+    return speak(cleanVoiceText, {
+      lang: 'vi-VN',
+      tone: characterMood === 'happy' || characterMood === 'divine' ? 'lively' : 'mystic',
+      voiceGender: currentSpeaker,
+      gender: currentSpeaker,
+      force: true,
+      onStart: () => {
         setIsSpeaking(true);
         setHasStartedSpeaking(true);
-        setShowAutoplayPrompt(false);
-      };
-
-      utterance.onend = () => {
+      },
+      onEnd: () => setIsSpeaking(false),
+      onStop: () => setIsSpeaking(false),
+      onError: () => {
         setIsSpeaking(false);
-      };
-
-      utterance.onerror = (e) => {
-        console.warn("Speech error:", e);
-        setIsSpeaking(false);
-        if (!hasStartedSpeaking) {
-          setShowAutoplayPrompt(true);
-        }
-      };
-
-      window.speechSynthesis.speak(utterance);
-      hasAutoSpokenRef.current = true;
-    } catch (e) {
-      console.warn("Speech synthesis error:", e);
-      setIsSpeaking(false);
-      setShowAutoplayPrompt(true);
-    }
+        if (isOpeningGreeting && voiceEnabledRef.current) setShowIntroAudioPrompt(true);
+      }
+    });
   };
 
-  // TỰ ĐỘNG PHÁT TIẾNG NÓI NGAY KHI MỞ APP (TỰ MỞ GIỌNG KHÔNG CẦN BẤM LOA)
+  const speakTextRef = useRef(speakText);
+  speakTextRef.current = speakText;
+  const introScriptRef = useRef(initialIntroScript);
+  introScriptRef.current = initialIntroScript;
+
+  // TỰ ĐỘNG PHÁT TIẾNG NÓI CỦA NHÂN VẬT KHI MỞ ỨNG DỤNG (HOẶC KHI CHẠM MÀN HÌNH LẦN ĐẦU)
   useEffect(() => {
-    let hasSpoken = false;
+    let hasPlayed = false;
 
-    const playIntroSpeech = () => {
-      if (hasSpoken) return;
-      hasSpoken = true;
-      hasAutoSpokenRef.current = true;
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-        if (window.speechSynthesis.paused) {
-          window.speechSynthesis.resume();
-        }
-      }
-      speakText(initialIntroScript);
-      setShowAutoplayPrompt(false);
+    const playIntroGreeting = () => {
+      if (hasPlayed || introSpeechAttemptedRef.current) return;
+      hasPlayed = true;
+      unlockAudio();
+      speakTextRef.current(introScriptRef.current);
     };
 
-    // 1. Thử gọi phát ngay khi nạp trang
-    const timer1 = setTimeout(() => {
-      if (!hasSpoken && 'speechSynthesis' in window) {
-        playIntroSpeech();
-      }
-    }, 250);
+    // Thử phát ngay sau 400ms khi mở ứng dụng
+    const timer = setTimeout(() => {
+      playIntroGreeting();
+    }, 400);
 
-    // 2. Tự động phát ngay khi người dùng chạm bất kỳ đâu hoặc bấm phím (không cần bấm vào nút loa)
-    const unlockEvents = ['pointerdown', 'mousedown', 'touchstart', 'keydown', 'wheel'];
-    const handleFirstGesture = () => {
-      if (!hasSpoken) {
-        playIntroSpeech();
-      }
-      unlockEvents.forEach(evt => window.removeEventListener(evt, handleFirstGesture));
+    // Xử lý chính sách Autoplay của trình duyệt/di động: phát ngay khi chạm/click lần đầu
+    const onFirstUserAction = () => {
+      playIntroGreeting();
+      ['pointerdown', 'touchstart', 'click'].forEach(ev => {
+        window.removeEventListener(ev, onFirstUserAction, true);
+      });
     };
 
-    unlockEvents.forEach(evt => {
-      window.addEventListener(evt, handleFirstGesture, { once: true, capture: true });
+    ['pointerdown', 'touchstart', 'click'].forEach(ev => {
+      window.addEventListener(ev, onFirstUserAction, { once: true, capture: true, passive: true });
     });
 
-    // 3. Khi trình duyệt nạp xong bộ giọng nói tiếng Việt
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.onvoiceschanged = () => {
-        if (!hasSpoken) {
-          playIntroSpeech();
-        }
-      };
-    }
-
     return () => {
-      clearTimeout(timer1);
-      unlockEvents.forEach(evt => window.removeEventListener(evt, handleFirstGesture));
+      clearTimeout(timer);
+      ['pointerdown', 'touchstart', 'click'].forEach(ev => {
+        window.removeEventListener(ev, onFirstUserAction, true);
+      });
     };
-  }, []);
+  }, [unlockAudio]);
+
+  useEffect(() => {
+    voiceEnabledRef.current = voiceEnabled;
+  }, [voiceEnabled]);
+
+  useEffect(() => {
+    setMessages(prev => prev.map(message => message.id === 'init-1'
+      ? { ...message, text: initialIntroScript }
+      : message));
+  }, [initialIntroScript]);
 
   // Cuộn chat tự động
   useEffect(() => {
     if (chatScrollRef.current) {
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
     }
-  }, [messages, isTyping]);
+  }, [messages, isTyping, hasIntroAppeared]);
 
   // KHI NGƯỜI DÙNG BẤM "NHỜ TIÊN SINH CHỈ ĐIỂM" -> HỎI DANH TÍNH TRƯỚC
   const handleSelectYes = () => {
     setUserChoice('yes');
 
-    const userText = "Quả thực có điều trăn trở, nhờ tiên sinh chỉ điểm giúp!";
-    const teacherReply = "Thiên cơ huyền vi, trước khi bấm quẻ, xin hỏi quý danh hoặc pháp danh của bạn hữu là gì để ta tiện xưng hô?";
+    const userText = guidePersona === 'female'
+      ? 'Quả thực có điều trăn trở, nhờ tiên nương chỉ điểm giúp!'
+      : 'Quả thực có điều trăn trở, nhờ tiên sinh chỉ điểm giúp!';
+    const teacherReply = guidePersona === 'female'
+      ? `Thiên cơ huyền vi, trước khi bấm quẻ, xin hỏi quý danh hoặc pháp danh của ${guideAddress} để ta tiện xưng hô?`
+      : `Thiên cơ huyền vi, trước khi bấm quẻ, xin hỏi quý danh hoặc pháp danh của ${guideAddress} để bần đạo tiện xưng hô?`;
 
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
@@ -239,7 +299,9 @@ export const AnimeGuide: React.FC<AnimeGuideProps> = ({ onQuickQuestion, onNavig
       timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
     };
 
-    const teacherReply = `Chào ${finalName}! Hôm nay bạn muốn ta xem về phương diện nào trước: Xem Tử Vi vận số, Xem Chỉ Tay hay Xem Tướng Mạo?`;
+    const teacherReply = guidePersona === 'female'
+      ? `Chào ${finalName}! Thiếp có thể cùng ${guideAddress} xem về phương diện nào trước: Tử Vi vận số, Chỉ Tay hay Tướng Mạo?`
+      : `Chào ${finalName}! Hôm nay bần đạo có thể giúp ${guideAddress} xem về phương diện nào trước: Tử Vi vận số, Chỉ Tay hay Tướng Mạo?`;
 
     const replyMsg: ChatMessage = {
       id: (Date.now() + 1).toString(),
@@ -257,7 +319,9 @@ export const AnimeGuide: React.FC<AnimeGuideProps> = ({ onQuickQuestion, onNavig
     setUserChoice('no');
 
     const userText = "Tôi chỉ tiện đường ghé qua dạo chơi thôi!";
-    const teacherReply = "Haha, vạn sự tùy duyên! Người cứ thong thả dạo bước ngắm cảnh Thiên Cơ Các. Khi nào tâm động hay có điều cần vấn, cứ việc cất tiếng hỏi ta.";
+    const teacherReply = guidePersona === 'female'
+      ? `Haha, vạn sự tùy duyên! ${guideAddress} cứ thong thả dạo bước ngắm cảnh Thiên Cơ Các. Khi nào tâm động, cứ cất tiếng gọi ta.`
+      : `Haha, vạn sự tùy duyên! ${guideAddress} cứ thong thả dạo bước ngắm cảnh Thiên Cơ Các. Khi nào tâm động, cứ cất tiếng hỏi ta.`;
 
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
@@ -342,7 +406,7 @@ export const AnimeGuide: React.FC<AnimeGuideProps> = ({ onQuickQuestion, onNavig
       text: m.text
     }));
 
-    const response = await chatWithLinhNhi(history, text);
+    const response = await chatWithLinhNhi(history, text, guidePersona, userGender ?? undefined);
 
     setCharacterMood(response.mood);
 
@@ -379,14 +443,27 @@ export const AnimeGuide: React.FC<AnimeGuideProps> = ({ onQuickQuestion, onNavig
     }
   };
 
-  const toggleVoice = () => {
-    const nextState = !voiceEnabled;
-    setVoiceEnabled(nextState);
-    if (nextState) {
+  const toggleVoiceHandler = () => {
+    const enabled = toggleAppVoice();
+    if (enabled) {
+      unlockAudio();
+      setHasIntroAppeared(true);
+      setShowIntroAudioPrompt(false);
       speakText(initialIntroScript);
     } else {
-      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
       setIsSpeaking(false);
+    }
+  };
+
+  const switchGuidePersona = () => {
+    const nextPersona: GuidePersona = guidePersona === 'female' ? 'male' : 'female';
+    setManualPersona(nextPersona);
+    setCurrentFortuneTellerStyle(nextPersona === 'female' ? 'female_oracle' : 'manga_cool');
+    setHasIntroAppeared(true);
+    setShowIntroAudioPrompt(false);
+    if (voiceEnabled) {
+      unlockAudio();
+      speakText(introForPersona(nextPersona), nextPersona);
     }
   };
 
@@ -396,236 +473,164 @@ export const AnimeGuide: React.FC<AnimeGuideProps> = ({ onQuickQuestion, onNavig
       <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
         {/* Làn sương khói tím huyền ảo trôi chậm góc trên */}
         <div className="absolute -top-24 -left-24 w-[480px] h-[380px] bg-purple-600/15 rounded-full blur-[110px] fog-anim-1" />
-        
+
         {/* Làn khói vàng kim tiên khí tỏa ra góc phải */}
         <div className="absolute top-10 -right-20 w-[420px] h-[360px] bg-amber-500/12 rounded-full blur-[100px] fog-anim-2" />
-        
+
         {/* Lớp sương mù lam ngọc lượn sóng cuộn trôi dưới đáy */}
         <div className="absolute -bottom-16 inset-x-0 h-48 bg-gradient-to-t from-cyan-900/25 via-indigo-950/20 to-transparent blur-2xl fog-anim-1" />
-        
+
         {/* Các dải khói mờ mờ trôi dạt ngang qua sân khấu */}
         <div className="absolute top-1/3 -left-32 w-[650px] h-28 bg-gradient-to-r from-transparent via-cyan-400/10 to-transparent rotate-6 blur-3xl fog-anim-2" />
         <div className="absolute bottom-1/4 -right-32 w-[650px] h-28 bg-gradient-to-l from-transparent via-purple-400/10 to-transparent -rotate-6 blur-3xl fog-anim-1" />
       </div>
 
-      {/* BANNER NHẮC CHẠM BẬT TIẾNG NẾU TRÌNH DUYỆT CHẶN AUTOPLAY */}
-      {showAutoplayPrompt && !isSpeaking && (
-        <div 
-          onClick={() => {
-            speakText(initialIntroScript);
-            setShowAutoplayPrompt(false);
-          }}
-          className="mb-4 p-3 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 rounded-2xl cursor-pointer shadow-lg shadow-amber-500/40 flex items-center justify-between gap-3 animate-pulse"
-        >
-          <div className="flex items-center gap-2">
-            <Volume2 className="w-5 h-5 text-slate-950 animate-bounce" />
-            <p className="font-bold text-xs sm:text-sm">
-              🌸 Chạm vào đây để Thầy Bói cất tiếng tự giới thiệu và đàm đạo cùng bạn!
-            </p>
-          </div>
-          <span className="px-3 py-1 bg-slate-950 text-amber-300 rounded-xl text-xs font-bold whitespace-nowrap shadow">
-            Bật Tiếng Ngay
-          </span>
-        </div>
-      )}
-
-      {/* TOP HEADER: TIÊU ĐỀ BẤM PHÁT ÂM & LỰA CHỌN THẦY BÓI KHÁC NGAY TRÊN CÙNG DÒNG */}
-      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 pb-3 mb-4 border-b border-amber-500/30">
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Nút tiêu đề có thể click để nhân vật lập tức cất tiếng nói */}
-          <button 
-            onClick={() => speakText(userChoice === 'yes' ? messages[messages.length - 1]?.text : initialIntroScript)}
+      {/* TOP HEADER: CHỌN THẦY BÓI & BẬT/TẮT GIỌNG ĐỌC GỌN GÀNG TRÊN 1 DÒNG */}
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3 border-b border-slate-800/80 relative z-10">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => {
+              unlockAudio();
+              setHasIntroAppeared(true);
+              speakText(userChoice === 'yes' ? messages[messages.length - 1]?.text : initialIntroScript);
+            }}
             className="flex items-center gap-2 group text-left cursor-pointer active:scale-95 transition"
-            title="Chạm vào đây để Thầy Bói cất tiếng nói chuyện!"
+            title="Chạm để nghe lời dẫn"
           >
-            <span className="text-xl group-hover:rotate-180 transition-transform duration-700">☯</span>
-            <h2 className="font-mystic text-lg sm:text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-500 group-hover:from-yellow-200 group-hover:to-amber-300 underline decoration-amber-400/30 underline-offset-4">
-              Thầy Bói Giang Hồ
+            <span className="text-lg">☯</span>
+            <h2 className="font-mystic text-base sm:text-lg font-bold text-amber-300">
+              {guideName}
             </h2>
-            <Volume2 className={`w-4 h-4 text-amber-400 ${isSpeaking ? 'animate-bounce' : 'opacity-80 group-hover:opacity-100'}`} />
           </button>
 
-          {/* CÁC LỰA CHỌN THẦY BÓI KHÁC NGAY TRÊN CÙNG DÒNG */}
-          <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 border-l border-amber-500/40 pl-3">
-            <span className="text-[11px] font-bold text-amber-300/80 hidden sm:inline flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-amber-400" />
-              <span>Đổi thầy:</span>
-            </span>
-
+          {/* Chuyển đổi nhanh 1 Nam / 1 Nữ gọn nhẹ */}
+          <div className="flex items-center bg-slate-950/90 p-0.5 rounded-xl border border-slate-800">
             <button
+              type="button"
               onClick={() => {
+                stopSpeaking();
+                unlockAudio();
+                setManualPersona('male');
+                try { localStorage.setItem('thien_co_cac_selected_persona', 'male'); } catch {}
                 setCurrentFortuneTellerStyle('manga_cool');
-                speakText("Thiên Cơ Chân Nhân ta đây! Có điều gì trăn trở cứ việc cất lời.");
+                setHasIntroAppeared(true);
+                speakText("Thiên Cơ Chân Nhân ta đây! Có điều gì trăn trở cứ việc cất lời.", 'male');
               }}
-              className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition whitespace-nowrap flex items-center gap-1 ${
-                currentFortuneTellerStyle === 'manga_cool'
-                  ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 border-white shadow-md shadow-amber-500/40'
-                  : 'bg-slate-900 text-amber-400 border-amber-500/30 hover:text-white'
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition whitespace-nowrap ${
+                guidePersona === 'male' || currentFortuneTellerStyle === 'manga_cool'
+                  ? 'bg-amber-500 text-slate-950 font-bold'
+                  : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <span>🕶️ Manga Ngầu</span>
+              👨 Chân Nhân
             </button>
 
             <button
+              type="button"
               onClick={() => {
-                setCurrentFortuneTellerStyle('hooded_green');
-                speakText("Ta là nữ tiên tri áo choàng xanh. Linh khí đang vây quanh ta.");
+                stopSpeaking();
+                unlockAudio();
+                setManualPersona('female');
+                try { localStorage.setItem('thien_co_cac_selected_persona', 'female'); } catch {}
+                setCurrentFortuneTellerStyle('female_oracle');
+                setHasIntroAppeared(true);
+                speakText(introForPersona('female'), 'female');
               }}
-              className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition whitespace-nowrap flex items-center gap-1 ${
-                currentFortuneTellerStyle === 'hooded_green'
-                  ? 'bg-emerald-600 text-white border-amber-300 shadow-md'
-                  : 'bg-slate-900 text-slate-300 border-slate-700 hover:text-white'
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition whitespace-nowrap ${
+                guidePersona === 'female' && currentFortuneTellerStyle === 'female_oracle'
+                  ? 'bg-fuchsia-600 text-white font-bold'
+                  : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <span>🟢 Áo Choàng Xanh</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setCurrentFortuneTellerStyle('turban_tarot');
-                speakText("Lá bài Tarot sẽ chỉ lối cho vận mệnh tương lai của bạn.");
-              }}
-              className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition whitespace-nowrap flex items-center gap-1 ${
-                currentFortuneTellerStyle === 'turban_tarot'
-                  ? 'bg-purple-600 text-white border-amber-300 shadow-md'
-                  : 'bg-slate-900 text-slate-300 border-slate-700 hover:text-white'
-              }`}
-            >
-              <span>🟣 Turban & Tarot</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setCurrentFortuneTellerStyle('crystal_maiden');
-                speakText("Cầu pha lê sẽ phản chiếu những điều chưa tỏ trong tâm can.");
-              }}
-              className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition whitespace-nowrap flex items-center gap-1 ${
-                currentFortuneTellerStyle === 'crystal_maiden'
-                  ? 'bg-cyan-600 text-white border-amber-300 shadow-md'
-                  : 'bg-slate-900 text-slate-300 border-slate-700 hover:text-white'
-              }`}
-            >
-              <span>🔮 Cầu Pha Lê</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setCurrentFortuneTellerStyle('crimson_sorceress');
-                speakText("Hồng Y Nữ Vu bấm quẻ càn khôn, định đoạt cát hung!");
-              }}
-              className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition whitespace-nowrap flex items-center gap-1 ${
-                currentFortuneTellerStyle === 'crimson_sorceress'
-                  ? 'bg-red-700 text-white border-amber-300 shadow-md'
-                  : 'bg-slate-900 text-slate-300 border-slate-700 hover:text-white'
-              }`}
-            >
-              <span>🔴 Hồng Y</span>
+              👩 Tiên Nương
             </button>
           </div>
         </div>
 
-        {/* NÚT TRẠNG THÁI NÓI CHUYỆN */}
+        {/* Nút Bật/Tắt Giọng & Làm mới */}
         <div className="flex items-center gap-2">
-          {isSpeaking ? (
-            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 text-xs font-semibold animate-pulse">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              <span>Đang cất tiếng nói...</span>
-            </span>
-          ) : (
-            <span className="text-[11px] text-amber-400/70 hidden sm:inline italic">
-              (Bấm vào tiêu đề để nghe nói)
-            </span>
-          )}
+          <button
+            type="button"
+            onClick={toggleVoiceHandler}
+            aria-label={voiceEnabled ? 'Tắt giọng đọc' : 'Bật giọng đọc'}
+            aria-pressed={voiceEnabled}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium border transition ${
+              voiceEnabled
+                ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'
+                : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
+            }`}
+          >
+            {voiceEnabled ? <Volume2 className="w-3.5 h-3.5 text-emerald-400" /> : <VolumeX className="w-3.5 h-3.5" />}
+            <span>{voiceEnabled ? 'Giọng: BẬT' : 'Giọng: TẮT'}</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setUserChoice(null);
+              setHasIntroAppeared(false);
+              setMessages([messages[0]]);
+            }}
+            className="px-2.5 py-1 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-[11px] text-slate-400 hover:text-amber-300 flex items-center gap-1 transition"
+            title="Hỏi lại từ đầu"
+          >
+            <RotateCcw className="w-3 h-3" />
+            <span className="hidden sm:inline">Làm mới</span>
+          </button>
         </div>
       </div>
 
       {/* MAIN TWO-COLUMN STAGE: MÔ HÌNH THẦY BÓI & KHUNG ĐỐI THOẠI */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
-        
-        {/* CỘT TRÁI: NHÂN VẬT THẦY BÓI TRUYỆN TRANH (CÓ 2 Ô CÓ/KHÔNG GẮN NGAY BÊN CẠNH) */}
-        <div className="lg:col-span-5 flex flex-col items-center justify-between bg-slate-950/90 border border-purple-500/40 rounded-3xl p-3 shadow-xl relative overflow-visible group">
-          <div className="w-full flex items-center justify-between px-2 pb-2 border-b border-slate-800 z-10">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              <span className="font-mystic font-bold text-amber-300 text-xs tracking-wide">
-                {currentFortuneTellerStyle === 'manga_cool' 
-                  ? 'Thiên Cơ Chân Nhân' 
-                  : currentFortuneTellerStyle === 'hooded_green'
-                  ? 'Nữ Tiên Tri Áo Xanh'
-                  : currentFortuneTellerStyle === 'turban_tarot'
-                  ? 'Bà Bói Turban Tarot'
-                  : currentFortuneTellerStyle === 'crystal_maiden'
-                  ? 'Tiên Nữ Cầu Pha Lê'
-                  : 'Hồng Y Nữ Vu'}
-              </span>
-            </div>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-amber-900/80 text-amber-200 border-amber-500/50">
-              {isSpeaking ? 'Đang Đàm Đạo' : 'Trực Tuyến'}
-            </span>
-          </div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch relative z-10">
 
-          {/* Component Thầy Bói Truyện Tranh Khẩu Hình Đồng Bộ & 2 Ô CÓ/KHÔNG NGAY BÊN CẠNH */}
-          <div className="w-full flex-1 flex items-center justify-center relative my-1">
+        {/* CỘT TRÁI: NHÂN VẬT THẦY BÓI */}
+        <div className="lg:col-span-5 flex flex-col items-center justify-center bg-slate-950/75 border border-slate-800/90 rounded-2xl p-3 relative overflow-visible">
+          <div className="w-full flex-1 flex items-center justify-center relative">
             <Character3D
               isSpeaking={isSpeaking}
               mood={characterMood}
               userChoice={userChoice}
               currentStyle={currentFortuneTellerStyle}
+              characterName={guideName}
+              personaGender={guidePersona}
               onStyleChange={(st) => setCurrentFortuneTellerStyle(st)}
               onSelectYes={handleSelectYes}
               onSelectNo={handleSelectNo}
-              onCharacterClick={() => speakText(userChoice === 'yes' ? messages[messages.length - 1]?.text : initialIntroScript)}
+              onCharacterClick={() => {
+                unlockAudio();
+                setHasIntroAppeared(true);
+                speakText(userChoice === 'yes' ? messages[messages.length - 1]?.text : initialIntroScript);
+              }}
             />
-          </div>
-
-          {/* Điều khiển âm thanh giọng nói */}
-          <div className="w-full flex items-center justify-between px-2 pt-2 border-t border-slate-800 gap-2 z-10 text-xs">
-            <span className="text-slate-400 text-[11px]">Chạm nhân vật để nghe nói</span>
-            <button
-              onClick={toggleVoice}
-              className={`flex items-center gap-1 px-3 py-1 rounded-xl text-xs font-semibold border transition ${
-                voiceEnabled 
-                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/60' 
-                  : 'bg-slate-900 text-slate-400 border-slate-700'
-              }`}
-            >
-              {voiceEnabled ? <Volume2 className="w-3.5 h-3.5 text-emerald-400" /> : <VolumeX className="w-3.5 h-3.5" />}
-              <span>{voiceEnabled ? 'Giọng: BẬT' : 'Giọng: TẮT'}</span>
-            </button>
           </div>
         </div>
 
-        {/* CỘT PHẢI: KHUNG ĐỐI THOẠI & LỰA CHỌN CÁC MÔN XEM (NỀN XUYÊN THẤU GLASSMORPHISM ĐẲNG CẤP) */}
-        <div className="lg:col-span-7 flex flex-col justify-between bg-slate-950/60 backdrop-blur-xl border border-amber-400/40 rounded-3xl p-4 shadow-2xl shadow-purple-950/50">
-          
-          <div className="flex items-center justify-between pb-2.5 border-b border-amber-500/20">
-            <div className="flex items-center gap-2">
-              <MessageSquareHeart className="w-4 h-4 text-amber-400" />
-              <h3 className="font-mystic text-sm font-bold text-amber-300">
-                Trò Chuyện Cùng Thầy Bói
-              </h3>
-            </div>
-            
-            <button
-              onClick={() => {
-                setUserChoice(null);
-                setMessages([messages[0]]);
-                speakText(initialIntroScript);
-              }}
-              className="text-[11px] text-slate-400 hover:text-amber-300 flex items-center gap-1 transition"
-              title="Làm mới cuộc trò chuyện"
-            >
-              <RotateCcw className="w-3 h-3" />
-              <span>Hỏi lại từ đầu</span>
-            </button>
-          </div>
+        {/* CỘT PHẢI: KHUNG ĐỐI THOẠI & LỰA CHỌN CÁC MÔN XEM */}
+        <div className="lg:col-span-7 flex flex-col justify-between bg-slate-950/65 backdrop-blur-xl border border-slate-800/90 rounded-2xl p-4">
 
-          {/* Lịch sử trò chuyện với nền tin nhắn xuyên thấu mờ ảo */}
-          <div 
+          {/* Lịch sử trò chuyện */}
+          <div
             ref={chatScrollRef}
-            className="flex-1 my-2.5 space-y-2.5 max-h-[240px] sm:max-h-[260px] overflow-y-auto pr-1"
+            className="flex-1 mb-2.5 space-y-2.5 max-h-[250px] sm:max-h-[270px] overflow-y-auto pr-1"
           >
-            {messages.map((msg) => {
+            {!hasIntroAppeared && messages.length <= 1 && (
+              <div
+                onClick={() => {
+                  unlockAudio();
+                  setHasIntroAppeared(true);
+                  speakText(initialIntroScript);
+                }}
+                className="h-full min-h-[180px] flex flex-col items-center justify-center text-center p-6 rounded-2xl border border-dashed border-slate-800 hover:border-amber-400/40 bg-slate-900/30 cursor-pointer transition group"
+              >
+                <span className="text-2xl mb-2 group-hover:scale-110 transition-transform">☯</span>
+                <p className="text-xs sm:text-sm font-semibold text-amber-300">
+                  Chạm vào hình {guideName} để bắt đầu trò chuyện
+                </p>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Hoặc nhập trực tiếp điều bạn đang trăn trở vào ô bên dưới
+                </p>
+              </div>
+            )}
+            {messages.filter(msg => msg.id !== 'init-1' || hasIntroAppeared).map((msg) => {
               const isLinhNhi = msg.sender === 'linhnhi';
               return (
                 <div
@@ -638,10 +643,10 @@ export const AnimeGuide: React.FC<AnimeGuideProps> = ({ onQuickQuestion, onNavig
                       : 'bg-gradient-to-r from-purple-800/80 to-indigo-700/80 border border-purple-400/30 text-white rounded-tr-sm shadow-indigo-950/40'
                   }`}>
                     <div className="flex items-center justify-between gap-3 mb-1 text-[10px] text-amber-300 font-semibold">
-                      <span>{isLinhNhi ? '☯ Thầy Bói Giang Hồ' : '👤 Bạn'}</span>
+                      <span>{isLinhNhi ? `☯ ${guideName}` : '👤 Bạn'}</span>
                       {isLinhNhi && (
-                        <button 
-                          onClick={() => speakText(msg.text)} 
+                        <button
+                          onClick={() => { unlockAudio(); speakText(msg.text); }}
                           className="text-amber-400 hover:text-amber-200"
                           title="Nghe câu này"
                         >
@@ -653,6 +658,21 @@ export const AnimeGuide: React.FC<AnimeGuideProps> = ({ onQuickQuestion, onNavig
                     <p className="whitespace-pre-line leading-relaxed">
                       {msg.text}
                     </p>
+
+                    {msg.id === 'init-1' && hasIntroAppeared && userChoice === null && (
+                      <div className="mt-3 flex flex-wrap gap-2" aria-label="Chọn chủ đề muốn xem">
+                        {quickActions.map((action) => (
+                          <button
+                            key={action.tab}
+                            type="button"
+                            onClick={() => handleQuickAction(action.tab)}
+                            className="min-h-10 rounded-full border border-amber-300/50 bg-gradient-to-r from-amber-400/10 via-purple-500/15 to-indigo-400/10 px-3 py-2 text-[11px] font-semibold text-amber-100 shadow-sm shadow-purple-950/40 transition hover:border-amber-200 hover:from-amber-400/20 hover:to-indigo-400/20 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+                          >
+                            <span aria-hidden="true" className="mr-1">{action.icon}</span>{action.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
 
                     {msg.suggestedAction && (
                       <div className="mt-2.5 pt-2 border-t border-slate-700/60 flex items-center justify-end">
@@ -686,13 +706,11 @@ export const AnimeGuide: React.FC<AnimeGuideProps> = ({ onQuickQuestion, onNavig
 
           {/* VÙNG LỰA CHỌN CỦA NGƯỜI DÙNG */}
           <div className="pt-2 border-t border-slate-800/80">
-            {userChoice === null ? (
-              /* KHI VỪA MỞ RA: NHẮC NGƯỜI DÙNG CHỌN NGAY BÊN CẠNH NHÂN VẬT THẦY BÓI */
-              <div className="space-y-2 mb-2 p-3 bg-gradient-to-r from-amber-500/10 via-purple-900/20 to-amber-500/10 rounded-2xl border border-amber-400/30 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 text-xs text-amber-200">
-                  <Sparkles className="w-4 h-4 text-amber-400 animate-pulse flex-shrink-0" />
-                  <span>Hãy chọn <strong>"CÓ"</strong> hoặc <strong>"KHÔNG"</strong> ngay bên cạnh thầy bói để bắt đầu!</span>
-                </div>
+            {!hasIntroAppeared ? null : userChoice === null ? (
+              <div className="space-y-2 mb-2 p-2.5 bg-slate-900/70 rounded-xl border border-slate-800 flex items-center justify-between gap-3">
+                <span className="text-xs text-slate-300">
+                  Bạn có muốn {guidePersona === 'female' ? 'tiên nương' : 'thầy bói'} chỉ điểm một quẻ không?
+                </span>
 
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <button
@@ -703,7 +721,7 @@ export const AnimeGuide: React.FC<AnimeGuideProps> = ({ onQuickQuestion, onNavig
                   </button>
                   <button
                     onClick={handleSelectNo}
-                    className="py-1.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-rose-300 font-bold text-xs border border-rose-500/40 active:scale-95 transition"
+                    className="py-1.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs border border-slate-700 active:scale-95 transition"
                   >
                     Không
                   </button>
@@ -714,7 +732,7 @@ export const AnimeGuide: React.FC<AnimeGuideProps> = ({ onQuickQuestion, onNavig
               <div className="space-y-2 mb-2">
                 {!userName ? (
                   /* BƯỚC 1: HỎI HỌ TÊN NGƯỜI DÙNG */
-                  <form 
+                  <form
                     onSubmit={(e) => {
                       e.preventDefault();
                       handleConfirmName();
@@ -727,7 +745,7 @@ export const AnimeGuide: React.FC<AnimeGuideProps> = ({ onQuickQuestion, onNavig
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <input 
+                      <input
                         type="text"
                         value={nameInput}
                         onChange={(e) => setNameInput(e.target.value)}
@@ -772,7 +790,7 @@ export const AnimeGuide: React.FC<AnimeGuideProps> = ({ onQuickQuestion, onNavig
 
                       {/* LỰA CHỌN 2: XEM CHỈ TAY */}
                       <button
-                        onClick={() => onNavigateTab && onNavigateTab('facepalm')}
+                        onClick={() => onNavigateTab && onNavigateTab('facepalm', 'palm')}
                         className="p-2.5 rounded-xl bg-slate-950/80 hover:bg-slate-800 border border-cyan-500/30 hover:border-cyan-400 text-center transition flex flex-col items-center justify-center gap-1 group shadow active:scale-95"
                       >
                         <span className="text-lg group-hover:scale-110 transition-transform">✋</span>
@@ -782,7 +800,7 @@ export const AnimeGuide: React.FC<AnimeGuideProps> = ({ onQuickQuestion, onNavig
 
                       {/* LỰA CHỌN 3: XEM TƯỚNG MẠO */}
                       <button
-                        onClick={() => onNavigateTab && onNavigateTab('facepalm')}
+                        onClick={() => onNavigateTab && onNavigateTab('facepalm', 'face')}
                         className="p-2.5 rounded-xl bg-slate-950/80 hover:bg-slate-800 border border-purple-500/30 hover:border-purple-400 text-center transition flex flex-col items-center justify-center gap-1 group shadow active:scale-95"
                       >
                         <span className="text-lg group-hover:scale-110 transition-transform">👁️</span>
@@ -809,7 +827,7 @@ export const AnimeGuide: React.FC<AnimeGuideProps> = ({ onQuickQuestion, onNavig
             )}
 
             {/* Input trò chuyện */}
-            <form 
+            <form
               onSubmit={(e) => {
                 e.preventDefault();
                 handleSendMessage();
@@ -840,3 +858,4 @@ export const AnimeGuide: React.FC<AnimeGuideProps> = ({ onQuickQuestion, onNavig
     </div>
   );
 };
+

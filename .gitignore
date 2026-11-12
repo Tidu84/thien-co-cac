@@ -130,3 +130,9 @@ Thumbs.db
 *.keystore
 *.jks
 
+
+# IDE / Editor
+.idea/
+frontend/android/.idea/
+.vscode/
+

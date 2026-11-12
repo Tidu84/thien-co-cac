@@ -55,12 +55,16 @@ export interface TuViProfile {
 export interface TuViPalace {
   name: string;
   stars: string[];
-  luckScore: number;
+  luckScore?: number;
   description: string;
 }
 
 export interface UserDossier {
   id: string;
+  userId?: string;             // ID tài khoản tạo hồ sơ
+  deviceId?: string;           // Mã định danh thiết bị tạo hồ sơ (để phân lập hồ sơ trên từng máy)
+  isLocalCreated?: boolean;    // Cờ đánh dấu hồ sơ do chính máy này tự tạo (để phân tách với kho tổng 63 hồ sơ của Admin)
+  relation?: string;           // 'Bản thân' | 'Bố mẹ' | 'Vợ chồng' | 'Con cái' | 'Người yêu' | 'Bạn bè' | 'Đối tác' | 'Khác'
   fullName: string;
   gender?: 'nam' | 'nu';
   birthDate?: string; // YYYY-MM-DD
@@ -72,6 +76,7 @@ export interface UserDossier {
   createdDate: string;
   lastUpdated: string;
   recordsCount?: number;
+  syncStatus?: 'synced' | 'local' | 'syncing';
 
   // Hình ảnh tướng pháp & chỉ tay
   faceImage?: string;          // Ảnh chụp khuôn mặt (base64 hoặc URL)
@@ -101,6 +106,9 @@ export interface TarotCard {
 
 export interface DivinationRecord {
   id: string;
+  userId?: string;
+  deviceId?: string;           // Mã định danh thiết bị tạo quẻ
+  dossierId?: string;
   type: 'iching' | 'tuvi' | 'love_match' | 'numerology' | 'compass' | 'face' | 'palm' | 'body' | 'tarot' | 'crystal';
   personName?: string; // Tên của chủ sự / người được lưu hồ sơ
   capturedImage?: string; // Hình ảnh chụp tướng mặt, chỉ tay, toàn thân (base64 hoặc svg)
@@ -209,3 +217,5 @@ export interface CompassProfile {
   menhQuai: string; // 'Đông Tứ Mệnh' | 'Tây Tứ Mệnh'
   directions: CompassDirectionInfo[];
 }
+
+
