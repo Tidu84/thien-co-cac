@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAppVoice } from '../contexts/VoiceContext';
 import { TuViProfile, TuViPalace, NavTab } from '../types';
-import { TERRESTRIAL_BRANCHES } from '../constants';
 import { calculateTuViChart } from '../services/tuviEngine';
 import { convertSolar2Lunar, convertLunar2Solar, LunarDateResult } from '../services/lunarCalendar';
 import { analyzeTuViWithGemini, askTuViDeepDiveQuestion } from '../services/geminiService';
@@ -10,12 +9,10 @@ import {
   getActiveDossierName, 
   getUserDossiers 
 } from '../services/dossierService';
-import { buildTuViProfileAndLifeDossier } from '../services/tuViService';
-import { MasterDestinySynthesisModal } from './MasterDestinySynthesisModal';
+import { buildTuViProfileAndLifeDossier, generateLifeDestinyDossier } from '../services/tuViService';
 import { BirthDateSelector } from './BirthDateSelector';
 import { 
   Sparkles, 
-  BookmarkPlus, 
   Loader2, 
   Award, 
   Volume2, 
@@ -38,7 +35,6 @@ import {
   HelpCircle,
   Send,
   ArrowRight,
-  ChevronRight,
   Calendar,
   ShieldAlert,
   Layers,
@@ -96,8 +92,6 @@ export const TuViHoroscope: React.FC<TuViProps> = ({ onSaveResult, onNavigateTab
   // Trạng thái giọng nói & UI
   const [isVoiceSpeaking, setIsVoiceSpeaking] = useState(false);
   const [currentlySpeakingSection, setCurrentlySpeakingSection] = useState<string | null>(null);
-  const [hasAutoFilled, setHasAutoFilled] = useState(false);
-  const [showMasterSynthesis, setShowMasterSynthesis] = useState(false);
   const [loading, setLoading] = useState(false);
   const [readingResult, setReadingResult] = useState<string | null>(null);
   const [parsedSections, setParsedSections] = useState<ParsedTuViSections | null>(null);
@@ -105,7 +99,6 @@ export const TuViHoroscope: React.FC<TuViProps> = ({ onSaveResult, onNavigateTab
 
   const [palaces, setPalaces] = useState<TuViPalace[]>([]);
   const [profileSummary, setProfileSummary] = useState<TuViProfile | null>(null);
-  const [savedSuccess, setSavedSuccess] = useState(false);
 
   // Trạng thái Bước tiếp theo: Xem tiếp sâu hơn hoặc Xem cái khác
   const [nextActionTab, setNextActionTab] = useState<'deep_dive' | 'explore_others'>('deep_dive');
@@ -224,7 +217,6 @@ export const TuViHoroscope: React.FC<TuViProps> = ({ onSaveResult, onNavigateTab
           setProfileSummary(null);
           setReadingResult('');
           setParsedSections(null);
-          setHasAutoFilled(false);
           return;
         }
 
@@ -236,13 +228,11 @@ export const TuViHoroscope: React.FC<TuViProps> = ({ onSaveResult, onNavigateTab
             setProfileSummary(null);
             setReadingResult('');
             setParsedSections(null);
-            setHasAutoFilled(false);
             return;
           }
           const prof = bundle.profile || bundle.profileSummary;
           setPalaces(bundle.palaces || []);
           setProfileSummary(prof);
-          setHasAutoFilled(true);
 
           const verdict = bundle.generalVerdict || '';
           setReadingResult((prev) => prev || verdict);
@@ -306,12 +296,6 @@ export const TuViHoroscope: React.FC<TuViProps> = ({ onSaveResult, onNavigateTab
         birthHour
       });
     }
-  };
-
-  const getHourBranchIndex = (hourStr: string): number => {
-    const branchName = hourStr.split(' ')[0];
-    const idx = TERRESTRIAL_BRANCHES.indexOf(branchName);
-    return idx >= 0 ? idx : 4;
   };
 
   // Tách text thô từ Gemini thành 6 phần nhỏ độc lập
@@ -398,7 +382,6 @@ export const TuViHoroscope: React.FC<TuViProps> = ({ onSaveResult, onNavigateTab
 
     setPalaces(calculatedPalaces);
     setProfileSummary(summary);
-    setHasAutoFilled(true);
 
     // LƯU TỰ ĐỘNG VÀO HỒ SƠ ĐƯƠNG SỐ
     upsertUserDossier({
@@ -443,27 +426,13 @@ export const TuViHoroscope: React.FC<TuViProps> = ({ onSaveResult, onNavigateTab
       fullContent: aiAnalysis,
       type: 'tuvi'
     });
-    setSavedSuccess(true);
 
     // Thầy bói tự động phán lời khẩu quyết đầu tiên
     const thayPhanSpeech = `Thầy bói phán cho đương số tuổi ${currentConv.canChiYear}, bản mệnh ${currentConv.napAm}: ${parsed.thayPhan}`;
     speakVoice(thayPhanSpeech, 'thayPhan');
   };
 
-  const handleSave = () => {
-    if (!readingResult || !profileSummary) return;
-    onSaveResult({
-      title: `Lá Số Tử Vi: ${profileSummary.fullName} (${profileSummary.canChiYear} - ${profileSummary.menhNguHanh})`,
-      personName: profileSummary.fullName,
-      summary: `Dương lịch: ${profileSummary.solarDate} • Âm lịch: ${profileSummary.lunarDate} • Cung Mệnh: ${profileSummary.cungMenh} (${profileSummary.cuc})`,
-      fullContent: readingResult,
-      type: 'tuvi'
-    });
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3000);
-  };
-
-    // Xử lý hỏi thầy bói giang hồ chuyên sâu về lá số
+  // Xử lý hỏi thầy bói giang hồ chuyên sâu về lá số
   const handleAskQuestion = async (customQ?: string) => {
     const questionToAsk = (customQ || qaInput).trim();
     if (!questionToAsk || !profileSummary) return;
@@ -572,118 +541,6 @@ export const TuViHoroscope: React.FC<TuViProps> = ({ onSaveResult, onNavigateTab
     ];
   };
 
-  // Tạo Bảng Chi Tiết Lý Giải Bản Mệnh Cả Đời
-  const generateLifeDestinyDossier = (profile: TuViProfile) => {
-    const { menhNguHanh, canChiYear, cuc, cungMenh, cungThan } = profile;
-
-    let element = 'Kim';
-    if (menhNguHanh.includes('Mộc')) element = 'Mộc';
-    else if (menhNguHanh.includes('Thủy')) element = 'Thủy';
-    else if (menhNguHanh.includes('Hỏa')) element = 'Hỏa';
-    else if (menhNguHanh.includes('Thổ')) element = 'Thổ';
-
-    const tienVan = {
-      ageRange: "Thuở ấu thơ đến 30 tuổi",
-      title: "Tiền Vận: Trui Rèn Bản Lĩnh & Tích Lũy Căn Cơ",
-      status: "Giai đoạn học vấn & lập thân",
-      detail: `Thiếu thời của đương số tuổi ${canChiYear} mang tính chất rèn đúc ý chí. Bản tính vốn thông minh, tự lập từ sớm nhưng tiền vận thường trải qua vài phen thử thách trong học vấn hoặc bước đầu lập nghiệp. Đây là lúc trời thử lòng người, tích lũy kiến thức và đạo đức làm bệ phóng vững chãi cho tương lai.`,
-      keyword: "Học đạo dưỡng tâm • Không nản chí",
-      badgeColor: "bg-blue-500/20 text-blue-300 border-blue-400/40"
-    };
-
-    const trungVan = {
-      ageRange: "Từ 31 đến 55 tuổi",
-      title: "Trung Vận: Thời Kỳ Hoàng Kim & Bứt Phá Công Danh",
-      status: "Giai đoạn đại phát tài lộc & lập nghiệp",
-      detail: `Bước vào tuổi tam tuần, thiên thời địa lợi nhân hòa hội tụ. Cung Mệnh tại ${cungMenh} phối hợp Thân cư ${cungThan} kích hoạt vượng khí tài lộc. Đây là thời kỳ đương số gặt hái thành công vang dội nhất, gây dựng cơ nghiệp riêng, tiền của dồi dào, có tiếng nói và uy tín trong xã hội.`,
-      keyword: "Nắm bắt thời cơ • Tài lộc bùng nổ",
-      badgeColor: "bg-amber-500/20 text-amber-300 border-amber-400/40"
-    };
-
-    const hauVan = {
-      ageRange: "Từ 56 tuổi trở đi",
-      title: "Hậu Vận: Viên Mãn Phúc Lộc & Điền Sản Vững Bền",
-      status: "Giai đoạn an hưởng & phúc trạch",
-      detail: `Hậu vận của đương số đạt được sự an nhàn, điền sản đất đai tích tụ dày dặn. Tâm tính trầm ổn, hướng thiện. Con cháu phương trưởng, thành đạt và hiếu thuận với cha mẹ. Đương số sống thọ, hưởng trọn phúc đức tổ tiên, gia môn vinh hiển muôn phần.`,
-      keyword: "Đức năng thắng số • Gia đạo an khang",
-      badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-400/40"
-    };
-
-    const fivePillars = [
-      {
-        id: 'pillar_personality',
-        title: 'Căn Khí & Cốt Cách Bản Mệnh',
-        subtitle: `Nạp Âm: ${menhNguHanh} • Mệnh tại: ${cungMenh}`,
-        icon: Sparkles,
-        color: 'border-yellow-400/40 text-yellow-300 bg-yellow-500/10',
-        keyFact: `Khí chất kiên định của hành ${element}`,
-        deepAnalysis: `Đương số sinh năm ${canChiYear} nạp âm ${menhNguHanh} là người có nội lực phi thường, trọng chữ tín và sống có nguyên tắc. Bản lĩnh dám nghĩ dám làm, ghét sự giả tạo, luôn sẵn lòng bảo bọc người thân cận. Tuy nhiên, đôi lúc quá cầu toàn, tự ôm đồm nhiều việc khiến tinh thần dễ lao lực.`,
-        advice: `Học cách buông bớt sự kiểm soát, lắng nghe trực giác và cho phép bản thân nghỉ ngơi đúng lúc.`
-      },
-      {
-        id: 'pillar_career',
-        title: 'Quan Lộc & Con Đường Sự Nghiệp Cả Đời',
-        subtitle: `Thân cư ${cungThan} • Cục: ${cuc}`,
-        icon: Briefcase,
-        color: 'border-emerald-400/40 text-emerald-300 bg-emerald-500/10',
-        keyFact: 'Hợp quản lý độc lập, thương mại hoặc chuyên môn sâu',
-        deepAnalysis: `Đường công danh của bạn không thích hợp làm những việc rập khuôn hay phụ thuộc hoàn toàn vào người khác. Bạn phát huy tối đa năng lực khi làm chủ kinh doanh, quản lý đội ngũ, hoạch định chiến lược hoặc làm trong các lĩnh vực tài chính, công nghệ, sáng tạo. Trung vận có quý nhân nâng đỡ nâng tầm sự nghiệp.`,
-        advice: `Chọn đối tác hợp mệnh (Thổ hoặc Kim), ký kết văn bản pháp lý minh bạch để tránh thị phi tiểu nhân.`
-      },
-      {
-        id: 'pillar_wealth',
-        title: 'Kho Tàng Tài Bạch & Điền Sản Đất Đai',
-        subtitle: 'Tụ tài chính ngạch, càng tích lũy càng sung túc',
-        icon: Award,
-        color: 'border-amber-400/40 text-amber-300 bg-amber-500/10',
-        keyFact: 'Tiền tài đến từ thực lực, hậu vận điền sản bề thế',
-        deepAnalysis: `Lá số cho thấy bạn có cung Tài Bạch sáng, khả năng kiếm tiền nhạy bén nhưng thời trẻ dễ chi tiêu rộng rãi cho các mối quan hệ xã giao. Từ 35 tuổi trở đi, dòng tiền ổn định vững chắc, bạn có duyên lớn với bất động sản, đất đai điền trạch và các kênh tài sản giá trị thật.`,
-        advice: `Nên biến tiền mặt thành tài sản cố định (nhà đất, vàng) để giữ của bền lâu, tránh đầu tư lướt sóng may rủi.`
-      },
-      {
-        id: 'pillar_love',
-        title: 'Hôn Nhân, Phu Thê & Duyên Nợ Cả Đời',
-        subtitle: 'Duyên sâu nợ nặng, lạt mềm buộc chặt',
-        icon: Heart,
-        color: 'border-rose-400/40 text-rose-300 bg-rose-500/10',
-        keyFact: 'Kết hôn sau 26–28 tuổi đại cát, bạn đời đồng lòng',
-        deepAnalysis: `Chuyện tình cảm của bạn đòi hỏi sự thấu cảm và kiên nhẫn. Bạn đời là người có cá tính, giỏi giang và có trách nhiệm với tổ ấm. Thời kỳ đầu chung sống có thể xảy ra bất đồng quan điểm do cái tôi của hai bên, nhưng sau khi cùng nhau vượt qua thử thách kinh tế thì càng về già càng gắn bó khăng khít.`,
-        advice: `Bớt một câu tranh cãi là thêm mười phần phúc khí. Lắng nghe và tôn trọng khoảng trời riêng của bạn đời.`
-      },
-      {
-        id: 'pillar_health',
-        title: 'Tật Ách, Sức Khỏe & Đại Hạn Cần Phòng',
-        subtitle: 'Điều hòa khí huyết, giữ tâm an lạc',
-        icon: ShieldAlert,
-        color: 'border-cyan-400/40 text-cyan-300 bg-cyan-500/10',
-        keyFact: 'Chú ý hệ tiêu hóa, giấc ngủ và các năm xung chi tuổi',
-        deepAnalysis: `Do tính chất công việc nhiều lo toan, bạn cần lưu tâm đến tạng phủ thuộc hành khắc với bản mệnh, đặc biệt là hệ tiêu hóa, dạ dày và chứng đau đầu do căng thẳng. Cần cẩn trọng khi đi lại sông nước hoặc tham gia giao thông vào các tháng giữa năm trong các năm Tý - Ngọ - Mão - Dậu.`,
-        advice: `Tập thiền định hoặc thể thao đều đặn, ăn uống thanh đạm, năng làm việc thiện để tiêu tai giải nạn.`
-      }
-    ];
-
-    const destinyScores = [
-      { label: 'Phúc Đức & Quý Nhân', score: 88, level: 'Đại Cát', comment: 'Luôn có lối thoát trong bế tắc, được bề trên che chở', color: 'bg-purple-500' },
-      { label: 'Tài Lộc & Điền Sản', score: 86, level: 'Phát Vượng', comment: 'Khả năng tích lũy tiền của rất tốt từ tuổi 35 trở đi', color: 'bg-amber-500' },
-      { label: 'Công Danh & Quyền Uy', score: 83, level: 'Thăng Tiến', comment: 'Có tố chất lãnh đạo, được đồng nghiệp nể phục', color: 'bg-emerald-500' },
-      { label: 'Duyên Nợ & Hạnh Phúc', score: 80, level: 'Hòa Hợp', comment: 'Trải qua thử thách sẽ viên mãn, bạn đời biết lo toan', color: 'bg-rose-500' },
-      { label: 'Khang Ninh & Thọ Trường', score: 90, level: 'Trường Thọ', comment: 'Cốt cách vững vàng, tâm an thì thân thể dẻo dai', color: 'bg-cyan-500' }
-    ];
-
-    const masterRemedy = {
-      luckyColors: element === 'Kim' ? 'Trắng, Bạc, Ánh Kim, Vàng Đất, Nâu (Thổ sinh Kim)' :
-                   element === 'Mộc' ? 'Xanh Lục, Xanh Lam, Đen (Thủy sinh Mộc)' :
-                   element === 'Thủy' ? 'Đen, Xanh Dương, Trắng, Ghi Bạc (Kim sinh Thủy)' :
-                   element === 'Hỏa' ? 'Đỏ, Hồng, Tím, Xanh Lá (Mộc sinh Hỏa)' :
-                   'Vàng, Nâu, Đỏ, Hồng, Tím (Hỏa sinh Thổ)',
-      luckyDirections: 'Đông Bắc (Sinh Khí), Tây Bắc (Thiên Y), Tây Nam (Diên Niên)',
-      goldenHours: 'Giờ Thìn (07h-09h), Giờ Thân (15h-17h), Giờ Tý (23h-01h)',
-      lifeMaxim: 'Đức năng thắng số • Tâm tịnh vạn sự thông • Hiếu kính cha mẹ là phong thủy số một.'
-    };
-
-    return { tienVan, trungVan, hauVan, fivePillars, destinyScores, masterRemedy };
-  };
-
   // Danh sách các tab phân mục bình giải
   const topicsList = [
     { id: 'thayPhan', label: 'Lời Thầy Phán', icon: ScrollText, color: 'text-amber-400 border-amber-400/50 bg-amber-500/10' },
@@ -698,7 +555,7 @@ export const TuViHoroscope: React.FC<TuViProps> = ({ onSaveResult, onNavigateTab
   const triadData = profileSummary ? getTriadDetails(profileSummary.cungMenh, profileSummary.menhNguHanh) : null;
   const remediesList = profileSummary ? getRemediesList(profileSummary.menhNguHanh, profileSummary.canChiYear) : [];
 
-  const lifeDossier = profileSummary ? generateLifeDestinyDossier(profileSummary) : null;
+  const lifeDossier = profileSummary ? generateLifeDestinyDossier(profileSummary, palaces) : null;
   const forecastYear = new Date().getFullYear();
   const nextForecastYear = forecastYear + 1;
   const approximateAge = profileSummary ? forecastYear - Number(profileSummary.solarDate.slice(0, 4)) : null;
@@ -1316,8 +1173,9 @@ export const TuViHoroscope: React.FC<TuViProps> = ({ onSaveResult, onNavigateTab
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                    {lifeDossier.fivePillars.map((p) => {
-                      const Icon = p.icon;
+                    {lifeDossier.fivePillars.map((p, idx) => {
+                      const pillarIcons = [Sparkles, Briefcase, Award, Heart, ShieldAlert];
+                      const Icon = pillarIcons[idx] || Sparkles;
                       return (
                         <div
                           key={p.id}

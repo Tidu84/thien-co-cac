@@ -217,7 +217,6 @@ export const TAROT_DECK: TarotCard[] = [
 
 export const CELESTIAL_STEMS = ["Giáp", "Ất", "Bính", "Đinh", "Mậu", "Kỷ", "Canh", "Tân", "Nhâm", "Quý"];
 export const TERRESTRIAL_BRANCHES = ["Tý", "Sửu", "Dần", "Mão", "Thìn", "Tỵ", "Ngọ", "Mùi", "Thân", "Dậu", "Tuất", "Hợi"];
-export const FIVE_ELEMENTS = ["Kim", "Thủy", "Mộc", "Hỏa", "Thổ"];
 
 export const PALACES = [
   "Mệnh", "Phụ Mẫu", "Phúc Đức", "Điền Trạch", 
@@ -318,23 +317,6 @@ export function calculateMenhThanPalaces(month: number, hourBranchIndex: number)
   const thanBranchIndex = (monthDanPos + hourBranchIndex) % 12;
   const cungThan = `Cung ${TERRESTRIAL_BRANCHES[thanBranchIndex]}`;
   return { cungMenh, cungThan, menhBranchIndex };
-}
-
-/**
- * Định Cục theo Can Năm và Cung Mệnh
- */
-export function calculateCuc(year: number, menhBranchIndex: number): string {
-  const stemIndex = ((year - 4) % 10 + 10) % 10;
-  const canGroup = stemIndex % 5;
-  const cucMatrix: Record<number, string[]> = {
-    0: ["Thủy Nhị Cục", "Hỏa Lục Cục", "Mộc Tam Cục", "Kim Tứ Cục", "Thổ Ngũ Cục", "Hỏa Lục Cục", "Thủy Nhị Cục", "Hỏa Lục Cục", "Mộc Tam Cục", "Kim Tứ Cục", "Thổ Ngũ Cục", "Hỏa Lục Cục"],
-    1: ["Hỏa Lục Cục", "Thổ Ngũ Cục", "Kim Tứ Cục", "Mộc Tam Cục", "Thủy Nhị Cục", "Thổ Ngũ Cục", "Hỏa Lục Cục", "Thổ Ngũ Cục", "Kim Tứ Cục", "Mộc Tam Cục", "Thủy Nhị Cục", "Thổ Ngũ Cục"],
-    2: ["Thổ Ngũ Cục", "Kim Tứ Cục", "Thủy Nhị Cục", "Hỏa Lục Cục", "Mộc Tam Cục", "Kim Tứ Cục", "Thổ Ngũ Cục", "Kim Tứ Cục", "Thủy Nhị Cục", "Hỏa Lục Cục", "Mộc Tam Cục", "Kim Tứ Cục"],
-    3: ["Mộc Tam Cục", "Thủy Nhị Cục", "Hỏa Lục Cục", "Thổ Ngũ Cục", "Kim Tứ Cục", "Thủy Nhị Cục", "Mộc Tam Cục", "Thủy Nhị Cục", "Hỏa Lục Cục", "Thổ Ngũ Cục", "Kim Tứ Cục", "Thủy Nhị Cục"],
-    4: ["Kim Tứ Cục", "Mộc Tam Cục", "Thổ Ngũ Cục", "Thủy Nhị Cục", "Hỏa Lục Cục", "Mộc Tam Cục", "Kim Tứ Cục", "Mộc Tam Cục", "Thổ Ngũ Cục", "Thủy Nhị Cục", "Hỏa Lục Cục", "Mộc Tam Cục"],
-  };
-  const list = cucMatrix[canGroup] || cucMatrix[0];
-  return list[menhBranchIndex] || "Kim Tứ Cục";
 }
 
 // ==========================================

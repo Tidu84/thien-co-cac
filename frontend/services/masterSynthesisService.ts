@@ -2,7 +2,7 @@ import { UserDossier, DivinationRecord } from '../types';
 import { buildTuViProfileAndLifeDossier, CompleteTuViBundle } from './tuViService';
 import { generateNumerologyReport } from './numerologyService';
 import { calculateCungPhi } from './loveMatchService';
-import { convertSolar2Lunar, LunarDateResult } from './lunarCalendar';
+import { convertSolar2Lunar } from './lunarCalendar';
 
 export type LifeStageKey = 'khoiSinh' | 'tuLuyen' | 'thucChien' | 'hauVan';
 

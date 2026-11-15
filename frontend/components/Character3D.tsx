@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Sparkles, Eye, Zap, Volume2, Wand2, Flame, Heart, CheckCircle2, XCircle } from 'lucide-react';
+import { Eye, Volume2 } from 'lucide-react';
 
 interface Character3DProps {
   isSpeaking: boolean;

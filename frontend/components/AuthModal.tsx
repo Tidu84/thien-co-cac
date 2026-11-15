@@ -5,8 +5,6 @@ import {
   User, 
   Lock, 
   Mail, 
-  Phone, 
-  Sparkles, 
   LogIn, 
   UserPlus, 
   AlertCircle, 

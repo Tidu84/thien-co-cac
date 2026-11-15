@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CompassProfile, CompassDirectionInfo } from '../types';
 import { 
   EIGHT_DIRECTIONS, 
@@ -17,16 +17,13 @@ import {
   Navigation, 
   RotateCw, 
   RotateCcw, 
-  Compass as CompassIcon, 
   Sparkles, 
   ShieldCheck, 
   AlertTriangle, 
   Home, 
   Bed, 
   Flame, 
-  HelpCircle,
   Radio,
-  Sliders,
   CheckCircle2,
   Lock,
   Unlock,

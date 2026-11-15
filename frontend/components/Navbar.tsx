@@ -26,8 +26,6 @@ import {
   Check,
   LogIn,
   LogOut,
-  ShieldCheck,
-  Flame,
   RefreshCw,
   Lock
 } from 'lucide-react';

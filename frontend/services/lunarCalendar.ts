@@ -1,4 +1,4 @@
-import { CELESTIAL_STEMS, TERRESTRIAL_BRANCHES, getCanChiNapAm, HoaGiapEntry } from '../constants';
+import { CELESTIAL_STEMS, TERRESTRIAL_BRANCHES, getCanChiNapAm } from '../constants';
 
 /**
  * Thuật toán thiên văn chuyển đổi Lịch Âm Dương Việt Nam (Múi giờ GMT+7)

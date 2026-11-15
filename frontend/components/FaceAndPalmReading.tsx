@@ -22,13 +22,10 @@ import {
   Hand, 
   Sparkles, 
   Loader2, 
-  BookmarkPlus, 
-  RefreshCw, 
   BookOpen, 
   Volume2, 
   VolumeX, 
   Sparkle, 
-  Check, 
   UserCheck, 
   Activity, 
   User, 
@@ -38,9 +35,7 @@ import {
   Scan,
   CheckCircle2,
   HeartPulse,
-  Award,
-  Layers,
-  ArrowRight
+  Award
 } from 'lucide-react';
 
 interface ParsedAnalysis {

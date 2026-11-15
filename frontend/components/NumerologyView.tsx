@@ -11,23 +11,15 @@ import {
 } from '../services/dossierService';
 import { 
   Sparkles, 
-  BookmarkPlus, 
   Loader2, 
   Binary, 
-  Flame, 
-  Compass, 
-  Award, 
   Calendar, 
   User, 
   Layers, 
-  Zap, 
-  HelpCircle,
-  ArrowUpRight,
   CheckCircle2,
   AlertTriangle,
   ShieldCheck,
-  Check,
-  RefreshCw
+  Check
 } from 'lucide-react';
 
 interface NumerologyProps {

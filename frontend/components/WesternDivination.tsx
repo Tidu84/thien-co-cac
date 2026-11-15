@@ -3,7 +3,7 @@ import { TAROT_DECK } from '../constants';
 import { TarotCard } from '../types';
 import { explainTarotWithGemini, scryCrystalBallWithGemini } from '../services/geminiService';
 import { getActiveDossierName } from '../services/dossierService';
-import { Sparkles, Moon, HelpCircle, BookmarkPlus, Loader2, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { Sparkles, Loader2, CheckCircle2 } from 'lucide-react';
 
 interface WesternProps {
   onSaveResult: (record: { title: string; summary: string; fullContent: string; type: 'tarot' | 'crystal'; personName?: string }) => void;
@@ -58,8 +58,6 @@ export const WesternDivination: React.FC<WesternProps> = ({ onSaveResult }) => {
   const [crystalLoading, setCrystalLoading] = useState(false);
   const [crystalGlowing, setCrystalGlowing] = useState(false);
 
-  const [savedSuccess, setSavedSuccess] = useState(false);
-
   // Rút 3 lá bài Tarot ngẫu nhiên (Quá khứ - Hiện tại - Tương lai)
   const drawTarotCards = async () => {
     setTarotLoading(true);
@@ -94,7 +92,6 @@ export const WesternDivination: React.FC<WesternProps> = ({ onSaveResult }) => {
       fullContent: aiText,
       type: 'tarot'
     });
-    setSavedSuccess(true);
   };
 
   // Kích hoạt quả cầu thủy tinh
@@ -118,35 +115,6 @@ export const WesternDivination: React.FC<WesternProps> = ({ onSaveResult }) => {
       fullContent: prophecy,
       type: 'crystal'
     });
-    setSavedSuccess(true);
-  };
-
-  const handleSaveTarot = () => {
-    if (!tarotReading) return;
-    const finalPersonName = activePersonName.trim() || 'Hữu Duyên Khách';
-    onSaveResult({
-      title: `Nhà Tiên Tri Tarot: ${selectedCards.map(c => c.card.name).join(' • ')}`,
-      personName: finalPersonName,
-      summary: `Hỏi: "${tarotQuestion}"`,
-      fullContent: tarotReading,
-      type: 'tarot'
-    });
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3000);
-  };
-
-  const handleSaveCrystal = () => {
-    if (!crystalProphecy) return;
-    const finalPersonName = activePersonName.trim() || 'Hữu Duyên Khách';
-    onSaveResult({
-      title: `Thần Dụ Quả Cầu Thủy Tinh`,
-      personName: finalPersonName,
-      summary: `Hỏi: "${crystalQuestion}"`,
-      fullContent: crystalProphecy,
-      type: 'crystal'
-    });
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3000);
   };
 
   return (

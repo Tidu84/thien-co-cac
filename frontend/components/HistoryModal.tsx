@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { DivinationRecord } from '../types';
-import { Bookmark, Trash2, Calendar, FileText, Download, Upload, Info, HelpCircle, HardDrive, User, Search, Filter, Eye } from 'lucide-react';
+import { Bookmark, Trash2, Calendar, FileText, Download, Upload, HardDrive, User, Search, Filter, Eye } from 'lucide-react';
 
 interface HistoryProps {
   records: DivinationRecord[];

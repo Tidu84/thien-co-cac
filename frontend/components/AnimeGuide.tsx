@@ -14,14 +14,8 @@ import {
   Volume2,
   VolumeX,
   RotateCcw,
-  MessageSquareHeart,
   Loader2,
-  ArrowRightCircle,
-  Gift,
-  Compass,
-  Sparkle,
-  CheckCircle,
-  XCircle
+  ArrowRightCircle
 } from 'lucide-react';
 
 type GuidePersona = 'male' | 'female';

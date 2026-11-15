@@ -3,7 +3,7 @@ import { IChingLine, IChingResult } from '../types';
 import { HEXAGRAMS_MAP } from '../constants';
 import { explainIChingWithGemini } from '../services/geminiService';
 import { getActiveDossierName } from '../services/dossierService';
-import { Sparkles, Coins, RotateCcw, BookmarkPlus, HelpCircle, Loader2, CheckCircle2 } from 'lucide-react';
+import { Sparkles, Coins, RotateCcw, Loader2, CheckCircle2 } from 'lucide-react';
 
 interface IChingProps {
   initialQuestion?: string;
@@ -21,7 +21,6 @@ export const IChingDivination: React.FC<IChingProps> = ({ initialQuestion = '', 
   const [coinValues, setCoinValues] = useState<[number, number, number]>([3, 3, 2]); // 3: Ngửa (Dương), 2: Sấp (Âm)
   const [result, setResult] = useState<IChingResult | null>(null);
   const [loadingAi, setLoadingAi] = useState(false);
-  const [savedSuccess, setSavedSuccess] = useState(false);
 
   // Đương số đồng bộ từ hồ sơ kích hoạt
   const [activePersonName, setActivePersonName] = useState<string>(() => {
@@ -168,27 +167,11 @@ export const IChingDivination: React.FC<IChingProps> = ({ initialQuestion = '', 
       fullContent: aiText,
       type: 'iching'
     });
-    setSavedSuccess(true);
   };
 
   const resetIChing = () => {
     setLines([]);
     setResult(null);
-    setSavedSuccess(false);
-  };
-
-  const handleSave = () => {
-    if (!result) return;
-    const finalPersonName = activePersonName.trim() || 'Hữu Duyên Khách';
-    onSaveResult({
-      title: `Kinh Dịch: ${result.name}`,
-      personName: finalPersonName,
-      summary: `Hỏi: "${result.question}" • ${result.meaning}`,
-      fullContent: result.aiExplanation,
-      type: 'iching'
-    });
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3000);
   };
 
   return (

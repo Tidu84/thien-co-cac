@@ -4,21 +4,17 @@ import {
   X, 
   Users, 
   Mail, 
-  ShieldAlert, 
   Trash2, 
   Download, 
   RefreshCw, 
   CheckCircle2, 
   Clock, 
-  Phone, 
-  UserCheck,
   Database,
   Cloud,
   Copy,
   Check,
   Search,
   Upload,
-  Sparkles,
   FileText,
   Flame
 } from 'lucide-react';
@@ -47,8 +43,6 @@ import {
 import { 
   getCloudConfig, 
   saveCloudConfig, 
-  testCloudConnection, 
-  getSupabaseInitSQL, 
   exportFullBackupJSON, 
   importFullBackupJSON,
   CloudConfig 

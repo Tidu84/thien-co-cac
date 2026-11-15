@@ -1,5 +1,5 @@
 import { BirthDateSelector } from './BirthDateSelector';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useAppVoice } from '../contexts/VoiceContext';
 import { UserDossier, NavTab } from '../types';
 import { 
@@ -10,32 +10,19 @@ import {
   deleteUserDossier,
   syncDossiersWithCloudNow
 } from '../services/dossierService';
-import { getCloudConfig } from '../services/cloudStorageService';
 import { 
   Users, 
-  UserCheck, 
   UserPlus, 
   Calendar, 
   Clock, 
   Trash2, 
-  CheckCircle2, 
-  ArrowRight, 
   Sparkles, 
-  Bookmark, 
   X,
-  ShieldCheck,
-  Flame,
   Search,
-  BookOpen,
   Volume2,
   VolumeX,
-  Sparkle,
-  Briefcase,
-  Heart,
-  ShieldAlert,
   Award,
   ScrollText,
-  Compass,
   Layers,
   Camera,
   Hand,
@@ -43,12 +30,14 @@ import {
   Activity,
   Cloud,
   RefreshCw,
-  Filter,
   Lock
 } from 'lucide-react';
 import { getCurrentUser } from '../services/authService';
 import { buildTuViProfileAndLifeDossier, CompleteTuViBundle } from '../services/tuViService';
-import { MasterDestinySynthesisModal } from './MasterDestinySynthesisModal';
+
+const MasterDestinySynthesisModal = lazy(() =>
+  import('./MasterDestinySynthesisModal').then(m => ({ default: m.MasterDestinySynthesisModal }))
+);
 
 interface RecentDossiersBannerProps {
   onNavigateTab: (tab: NavTab, subMode?: 'face' | 'palm' | 'body') => void;
@@ -1415,11 +1404,13 @@ export const RecentDossiersBanner: React.FC<RecentDossiersBannerProps> = ({ onNa
 
       {/* Modal Đại Tổng Luận Vận Mệnh Toàn Thư */}
       {synthesisDossier && (
-        <MasterDestinySynthesisModal
-          dossier={synthesisDossier}
-          onClose={() => setSynthesisDossier(null)}
-          onNavigateTab={onNavigateTab}
-        />
+        <Suspense fallback={null}>
+          <MasterDestinySynthesisModal
+            dossier={synthesisDossier}
+            onClose={() => setSynthesisDossier(null)}
+            onNavigateTab={onNavigateTab}
+          />
+        </Suspense>
       )}
 
       {/* Lightbox Phóng To Ảnh */}

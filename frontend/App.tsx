@@ -1,23 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { NavTab, DivinationRecord } from './types';
 import { Navbar } from './components/Navbar';
 import { AnimeGuide } from './components/AnimeGuide';
 import { IChingDivination } from './components/IChingDivination';
-import { TuViHoroscope } from './components/TuViHoroscope';
-import { LoveMatch } from './components/LoveMatch';
-import { NumerologyView } from './components/NumerologyView';
-import { FengShuiCompass } from './components/FengShuiCompass';
-import { FaceAndPalmReading } from './components/FaceAndPalmReading';
-import { WesternDivination } from './components/WesternDivination';
-import { HistoryModal } from './components/HistoryModal';
 import { RecentDossiersBanner } from './components/RecentDossiersBanner';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { AuthModal } from './components/AuthModal';
-import { AdminModal } from './components/AdminModal';
 import { getUserDossiers, syncDossierRecordCounts, syncDossiersWithCloudNow } from './services/dossierService';
 import { pushRecordToCloudAsync, deleteRecordFromCloud } from './services/cloudStorageService';
 import { pushRecordToFirebaseAsync, deleteRecordFromFirebase } from './services/firebaseService';
-import { Compass, Sparkles, Moon, Eye, Heart, Binary, Navigation } from 'lucide-react';
+
+const TuViHoroscope = lazy(() => import('./components/TuViHoroscope').then(m => ({ default: m.TuViHoroscope })));
+const LoveMatch = lazy(() => import('./components/LoveMatch').then(m => ({ default: m.LoveMatch })));
+const NumerologyView = lazy(() => import('./components/NumerologyView').then(m => ({ default: m.NumerologyView })));
+const FengShuiCompass = lazy(() => import('./components/FengShuiCompass').then(m => ({ default: m.FengShuiCompass })));
+const FaceAndPalmReading = lazy(() => import('./components/FaceAndPalmReading').then(m => ({ default: m.FaceAndPalmReading })));
+const WesternDivination = lazy(() => import('./components/WesternDivination').then(m => ({ default: m.WesternDivination })));
+const HistoryModal = lazy(() => import('./components/HistoryModal').then(m => ({ default: m.HistoryModal })));
+const AuthModal = lazy(() => import('./components/AuthModal').then(m => ({ default: m.AuthModal })));
+const AdminModal = lazy(() => import('./components/AdminModal').then(m => ({ default: m.AdminModal })));
+
+const TabLoadingFallback = () => (
+  <div className="py-16 flex flex-col items-center justify-center gap-3 text-amber-300/80">
+    <div className="w-8 h-8 rounded-full border-2 border-amber-400 border-t-transparent animate-spin" />
+    <span className="text-xs font-mystic tracking-wider">Đang khai mở thiên cơ...</span>
+  </div>
+);
 
 export default function App() {
   const [currentTab, setCurrentTab] = useState<NavTab>('home');
@@ -27,21 +34,25 @@ export default function App() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showAdminModal, setShowAdminModal] = useState(false);
 
+  const handleNavigateTab = useCallback((tab: NavTab, subMode?: 'face' | 'palm' | 'body') => {
+    if (tab === 'facepalm' && subMode) {
+      setFacePalmInitialMode(subMode);
+    }
+    setCurrentTab(tab);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
   // Load saved fortune records from LocalStorage & Cloud auto-sync
   useEffect(() => {
-    const handleAuthRequest = () => {
-      setShowAuthModal(true);
-    };
+    const handleAuthRequest = () => setShowAuthModal(true);
     window.addEventListener('thien_co_cac_request_auth', handleAuthRequest);
     try {
-      // Dọn dẹp tên active nếu là hồ sơ cần xóa
       const curName = localStorage.getItem('thien_co_cac_user_name') || '';
       const curLower = curName.toLowerCase();
       if (curLower.includes('tidu') || curLower.includes('dũng') || curLower.includes('dung')) {
         localStorage.removeItem('thien_co_cac_user_name');
       }
 
-      // Dọn dẹp và cô lập hồ sơ theo thiết bị/tài khoản (loại bỏ 63 hồ sơ của người khác)
       getUserDossiers();
 
       const data = localStorage.getItem('thien_co_cac_records');
@@ -61,8 +72,7 @@ export default function App() {
       console.error("Could not load stored records:", e);
     }
 
-    // Tự động đồng bộ hồ sơ đám mây khi mở ứng dụng (chỉ khi đã đăng nhập)
-    syncDossiersWithCloudNow().catch(err => console.log("[Cloud] Initial sync silent:", err));
+    syncDossiersWithCloudNow().catch(() => {});
 
     return () => {
       window.removeEventListener('thien_co_cac_request_auth', handleAuthRequest);
@@ -70,7 +80,7 @@ export default function App() {
   }, []);
 
   // Save fortune record
-  const handleSaveRecord = (item: { 
+  const handleSaveRecord = useCallback((item: { 
     title: string; 
     summary: string; 
     fullContent: string; 
@@ -89,45 +99,49 @@ export default function App() {
       personName: item.personName || defaultPersonName || 'Hữu Duyên Khách',
       date: new Date().toLocaleString('vi-VN')
     };
-    const updated = [newRecord, ...savedRecords];
-    setSavedRecords(updated);
-    syncDossierRecordCounts(updated);
-    try {
-      localStorage.setItem('thien_co_cac_records', JSON.stringify(updated));
-    } catch (e) {
-      console.error("Could not save to localStorage:", e);
-    }
+    setSavedRecords(prev => {
+      const updated = [newRecord, ...prev];
+      syncDossierRecordCounts(updated);
+      try {
+        localStorage.setItem('thien_co_cac_records', JSON.stringify(updated));
+      } catch (e) {
+        console.error("Could not save to localStorage:", e);
+      }
+      return updated;
+    });
 
-    // Tự động đẩy quẻ lên Google Firebase & Cloud
     pushRecordToFirebaseAsync(newRecord);
     pushRecordToCloudAsync(newRecord);
-  };
+  }, []);
 
-  const handleDeleteRecord = (id: string) => {
-    const updated = savedRecords.filter(r => r.id !== id);
-    setSavedRecords(updated);
-    syncDossierRecordCounts(updated);
-    localStorage.setItem('thien_co_cac_records', JSON.stringify(updated));
+  const handleDeleteRecord = useCallback((id: string) => {
+    setSavedRecords(prev => {
+      const updated = prev.filter(r => r.id !== id);
+      syncDossierRecordCounts(updated);
+      localStorage.setItem('thien_co_cac_records', JSON.stringify(updated));
+      return updated;
+    });
     deleteRecordFromFirebase(id);
     deleteRecordFromCloud(id);
-  };
+  }, []);
 
-  const handleClearAllRecords = () => {
+  const handleClearAllRecords = useCallback(() => {
     if (window.confirm("Bạn có chắc chắn muốn xóa toàn bộ sổ tay lưu quẻ không?")) {
       setSavedRecords([]);
       syncDossierRecordCounts([]);
       localStorage.removeItem('thien_co_cac_records');
     }
-  };
+  }, []);
 
-  const handleImportRecords = (imported: DivinationRecord[]) => {
-    const merged = [...imported, ...savedRecords];
-    // Remove duplicates by ID
-    const unique = Array.from(new Map(merged.map(item => [item.id, item])).values());
-    setSavedRecords(unique);
-    syncDossierRecordCounts(unique);
-    localStorage.setItem('thien_co_cac_records', JSON.stringify(unique));
-  };
+  const handleImportRecords = useCallback((imported: DivinationRecord[]) => {
+    setSavedRecords(prev => {
+      const merged = [...imported, ...prev];
+      const unique = Array.from(new Map(merged.map(item => [item.id, item])).values());
+      syncDossierRecordCounts(unique);
+      localStorage.setItem('thien_co_cac_records', JSON.stringify(unique));
+      return unique;
+    });
+  }, []);
 
   return (
     <div className="mobile-lite min-h-screen bg-slate-950 text-slate-100 flex flex-col relative">
@@ -150,32 +164,11 @@ export default function App() {
         {/* Tab 1: Home / Sảnh Tiên Tri & Kinh Dịch */}
         {currentTab === 'home' && (
           <div className="space-y-5">
-            {/* Thanh Đương Số Đang Xem (Thu gọn 1 dòng, bấm mới xổ danh sách) */}
-            <RecentDossiersBanner
-              onNavigateTab={(tab, subMode) => {
-                if (tab === 'facepalm' && subMode) {
-                  setFacePalmInitialMode(subMode);
-                }
-                setCurrentTab(tab);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-            />
-
-            {/* Khung Đàm Đạo Cùng Thầy Bói / Tiên Nương */}
+            <RecentDossiersBanner onNavigateTab={handleNavigateTab} />
             <AnimeGuide
-              onQuickQuestion={(q) => {
-                setActiveQuestion(q);
-              }}
-              onNavigateTab={(tab, subMode) => {
-                if (tab === 'facepalm' && subMode) {
-                  setFacePalmInitialMode(subMode);
-                }
-                setCurrentTab(tab);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
+              onQuickQuestion={setActiveQuestion}
+              onNavigateTab={handleNavigateTab}
             />
-
-            {/* Bàn Gieo Quẻ Kinh Dịch */}
             <IChingDivination
               initialQuestion={activeQuestion}
               onSaveResult={handleSaveRecord}
@@ -183,59 +176,55 @@ export default function App() {
           </div>
         )}
 
-        {/* Tab 2: Tử Vi Lý Số */}
-        {currentTab === 'tuvi' && (
-          <ErrorBoundary fallbackTitle="Lỗi hiển thị Tử Vi Lý Số">
-            <TuViHoroscope
+        <Suspense fallback={<TabLoadingFallback />}>
+          {/* Tab 2: Tử Vi Lý Số */}
+          {currentTab === 'tuvi' && (
+            <ErrorBoundary fallbackTitle="Lỗi hiển thị Tử Vi Lý Số">
+              <TuViHoroscope
+                onSaveResult={handleSaveRecord}
+                onNavigateTab={handleNavigateTab}
+              />
+            </ErrorBoundary>
+          )}
+
+          {/* Tab 3: La Bàn Bát Trạch Số Hóa */}
+          {currentTab === 'compass' && (
+            <FengShuiCompass onSaveResult={handleSaveRecord} />
+          )}
+
+          {/* Tab 4: Thần Số Học Pythagoras */}
+          {currentTab === 'numerology' && (
+            <NumerologyView onSaveResult={handleSaveRecord} />
+          )}
+
+          {/* Tab 5: Hợp Duyên Tình Cảm Bát Tự */}
+          {currentTab === 'love_match' && (
+            <LoveMatch onSaveResult={handleSaveRecord} />
+          )}
+
+          {/* Tab 6: Face & Palm Reading */}
+          {currentTab === 'facepalm' && (
+            <FaceAndPalmReading
+              initialMode={facePalmInitialMode}
               onSaveResult={handleSaveRecord}
-              onNavigateTab={(tab, subMode) => {
-                if (tab === 'facepalm' && subMode) {
-                  setFacePalmInitialMode(subMode);
-                }
-                setCurrentTab(tab);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
             />
-          </ErrorBoundary>
-        )}
+          )}
 
-        {/* Tab 3: La Bàn Bát Trạch Số Hóa */}
-        {currentTab === 'compass' && (
-          <FengShuiCompass onSaveResult={handleSaveRecord} />
-        )}
+          {/* Tab 7: Western Divination (Tarot & Crystal Ball) */}
+          {currentTab === 'western' && (
+            <WesternDivination onSaveResult={handleSaveRecord} />
+          )}
 
-        {/* Tab 4: Thần Số Học Pythagoras */}
-        {currentTab === 'numerology' && (
-          <NumerologyView onSaveResult={handleSaveRecord} />
-        )}
-
-        {/* Tab 5: Hợp Duyên Tình Cảm Bát Tự */}
-        {currentTab === 'love_match' && (
-          <LoveMatch onSaveResult={handleSaveRecord} />
-        )}
-
-        {/* Tab 6: Face & Palm Reading */}
-        {currentTab === 'facepalm' && (
-          <FaceAndPalmReading
-            initialMode={facePalmInitialMode}
-            onSaveResult={handleSaveRecord}
-          />
-        )}
-
-        {/* Tab 7: Western Divination (Tarot & Crystal Ball) */}
-        {currentTab === 'western' && (
-          <WesternDivination onSaveResult={handleSaveRecord} />
-        )}
-
-        {/* Tab 8: History Log & Storage Backup */}
-        {currentTab === 'history' && (
-          <HistoryModal
-            records={savedRecords}
-            onDeleteRecord={handleDeleteRecord}
-            onClearAll={handleClearAllRecords}
-            onImportRecords={handleImportRecords}
-          />
-        )}
+          {/* Tab 8: History Log & Storage Backup */}
+          {currentTab === 'history' && (
+            <HistoryModal
+              records={savedRecords}
+              onDeleteRecord={handleDeleteRecord}
+              onClearAll={handleClearAllRecords}
+              onImportRecords={handleImportRecords}
+            />
+          )}
+        </Suspense>
       </main>
 
       {/* Footer */}
@@ -252,23 +241,29 @@ export default function App() {
       </footer>
 
       {/* Auth Modal (Đăng nhập / Đăng ký) */}
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        onSuccess={(user) => {
-          if (user.role === 'admin') {
-            setShowAdminModal(true);
-          }
-        }}
-      />
+      {showAuthModal && (
+        <Suspense fallback={null}>
+          <AuthModal
+            isOpen={showAuthModal}
+            onClose={() => setShowAuthModal(false)}
+            onSuccess={(user) => {
+              if (user.role === 'admin') {
+                setShowAdminModal(true);
+              }
+            }}
+          />
+        </Suspense>
+      )}
 
       {/* Admin Management Modal (Dành riêng cho Quản Trị Viên) */}
       {showAdminModal && (
         <ErrorBoundary fallbackTitle="Lỗi hiển thị Bảng Quản Trị Admin">
-          <AdminModal
-            isOpen={showAdminModal}
-            onClose={() => setShowAdminModal(false)}
-          />
+          <Suspense fallback={null}>
+            <AdminModal
+              isOpen={showAdminModal}
+              onClose={() => setShowAdminModal(false)}
+            />
+          </Suspense>
         </ErrorBoundary>
       )}
     </div>

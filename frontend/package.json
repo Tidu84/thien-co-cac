@@ -15,11 +15,9 @@
     "@google/genai": "latest",
     "@supabase/supabase-js": "^2.118.0",
     "firebase": "^13.1.0",
-    "framer-motion": "latest",
     "lucide-react": "latest",
     "react": "latest",
-    "react-dom": "latest",
-    "three": "latest"
+    "react-dom": "latest"
   },
   "devDependencies": {
     "@types/node": "latest",

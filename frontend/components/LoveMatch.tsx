@@ -13,25 +13,15 @@ import {
 import { 
   Heart, 
   Sparkles, 
-  BookmarkPlus, 
   Loader2, 
-  Sun, 
-  Moon, 
   ShieldCheck, 
-  AlertCircle, 
   CheckCircle2, 
-  Users, 
-  Flame,
   ArrowRight,
-  User,
-  Calendar,
   Check,
   AlertTriangle,
   Volume2,
   VolumeX,
-  Compass,
-  Award,
-  ChevronDown
+  Award
 } from 'lucide-react';
 
 interface LoveMatchProps {
